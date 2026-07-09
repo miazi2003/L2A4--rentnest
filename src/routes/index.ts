@@ -5,6 +5,7 @@ import { CategoryPublicRoutes, CategoryAdminRoutes } from '../modules/category/c
 import { PropertyPublicRoutes, PropertyLandlordRoutes } from '../modules/property/property.route';
 import { RentalRoutes, LandlordRentalRoutes } from '../modules/rental/rental.route';
 import { PaymentRoutes } from '../modules/payment/payment.route';
+import { ReviewRoutes } from '../modules/review/review.route';
 
 const rootRouter = Router();
 
@@ -31,6 +32,9 @@ rootRouter.use('/landlord/requests', LandlordRentalRoutes);
 
 // Mount Payments under /api/payments
 rootRouter.use('/payments', PaymentRoutes);
+
+// Mount Reviews under /api/reviews
+rootRouter.use('/reviews', ReviewRoutes);
 
 // Mount API versions
 rootRouter.use('/v1', v1Router);
