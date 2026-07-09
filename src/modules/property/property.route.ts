@@ -1,17 +1,22 @@
 import { Router } from 'express';
 import { UserRole } from '@prisma/client';
 import { PropertyController } from './property.controller';
-import { validateBody, validateParams } from '../../middlewares/validate.middleware';
+import { validateBody, validateParams, validateQuery } from '../../middlewares/validate.middleware';
 import {
   createPropertySchema,
   updatePropertySchema,
   propertyIdParamSchema,
+  propertyQuerySchema,
 } from './property.validation';
 import { auth } from '../../middlewares/auth.middleware';
 
 // Public Router
 const publicRouter = Router();
-publicRouter.get('/', PropertyController.getAvailableProperties);
+publicRouter.get(
+  '/',
+  validateQuery(propertyQuerySchema),
+  PropertyController.getAvailableProperties,
+);
 publicRouter.get('/:id', validateParams(propertyIdParamSchema), PropertyController.getPropertyById);
 
 // Landlord Router

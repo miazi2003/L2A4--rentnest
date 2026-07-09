@@ -1,18 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
 import { PropertyService } from './property.service';
 import { ApiResponse } from '../../utils/apiResponse';
+import { IPropertyQuery } from './property.validation';
 
 /**
  * Controller retrieving all available properties.
  */
 const getAvailableProperties = async (
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const result = await PropertyService.getAvailableProperties();
-    ApiResponse.success(res, 200, 'Available properties retrieved successfully', result);
+    const result = await PropertyService.getAvailableProperties(
+      req.query as unknown as IPropertyQuery,
+    );
+    ApiResponse.success(
+      res,
+      200,
+      'Available properties retrieved successfully',
+      result.data,
+      result.meta,
+    );
   } catch (error) {
     next(error);
   }

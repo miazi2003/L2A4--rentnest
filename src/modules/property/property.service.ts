@@ -1,35 +1,107 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/db';
 import { NotFoundError, ForbiddenError, BadRequestError } from '../../errors/appError';
 import { ICreatePropertyInput, IUpdatePropertyInput } from './property.interface';
+import { IPropertyQuery } from './property.validation';
 
 /**
- * Get all available properties with landlord and category info, plus average rating and review counts.
+ * Get all available properties with filters, search, sorting, and pagination.
  */
-const getAvailableProperties = async () => {
-  const properties = await prisma.property.findMany({
-    where: {
-      availability: 'AVAILABLE',
-    },
-    include: {
-      landlord: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          role: true,
-        },
-      },
-      category: true,
-      reviews: {
-        select: {
-          rating: true,
-        },
-      },
-    },
-  });
+const getAvailableProperties = async (query: IPropertyQuery) => {
+  const {
+    search,
+    categoryId,
+    minPrice,
+    maxPrice,
+    availability,
+    landlordId,
+    page,
+    limit,
+    sortBy,
+    sortOrder,
+  } = query;
 
-  return properties.map((property) => {
+  // Build dynamic filter conditions
+  const where: Prisma.PropertyWhereInput = {
+    availability: availability || 'AVAILABLE',
+  };
+
+  if (search) {
+    where.OR = [
+      {
+        title: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      },
+      {
+        address: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      },
+    ];
+  }
+
+  if (categoryId) {
+    where.categoryId = categoryId;
+  }
+
+  if (landlordId) {
+    where.landlordId = landlordId;
+  }
+
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    where.price = {};
+    if (minPrice !== undefined) {
+      where.price.gte = minPrice;
+    }
+    if (maxPrice !== undefined) {
+      where.price.lte = maxPrice;
+    }
+  }
+
+  const skip = (page - 1) * limit;
+  const take = limit;
+
+  const orderBy: Prisma.PropertyOrderByWithRelationInput = {};
+  if (sortBy) {
+    orderBy[sortBy] = sortOrder || 'desc';
+  } else {
+    orderBy.createdAt = 'desc';
+  }
+
+  // Fetch count and paginated properties concurrently
+  const [total, properties] = await prisma.$transaction([
+    prisma.property.count({ where }),
+    prisma.property.findMany({
+      where,
+      skip,
+      take,
+      orderBy,
+      include: {
+        landlord: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+          },
+        },
+        category: true,
+        reviews: {
+          select: {
+            rating: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  const mappedProperties = properties.map((property) => {
     const totalReviews = property.reviews.length;
     const avgRating =
       totalReviews > 0
@@ -45,6 +117,16 @@ const getAvailableProperties = async () => {
       totalReviews,
     };
   });
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages,
+    },
+    data: mappedProperties,
+  };
 };
 
 /**
