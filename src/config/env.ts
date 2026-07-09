@@ -10,6 +10,8 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('*'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000), // default 15 minutes
   RATE_LIMIT_MAX: z.coerce.number().default(100),
+  JWT_SECRET: z.string().default('rentnest-super-secret-key-2026'),
+  JWT_EXPIRES_IN: z.string().default('7d'),
 });
 
 const parseEnv = () => {
