@@ -7,6 +7,8 @@ import { RentalRoutes, LandlordRentalRoutes } from '../modules/rental/rental.rou
 import { PaymentRoutes } from '../modules/payment/payment.route';
 import { ReviewRoutes } from '../modules/review/review.route';
 import { AdminUserRoutes } from '../modules/admin/admin.route';
+import { AdminPropertyRoutes } from '../modules/admin/admin.property.route';
+import { AdminRentalRoutes } from '../modules/admin/admin.rental.route';
 
 const rootRouter = Router();
 
@@ -39,6 +41,12 @@ rootRouter.use('/reviews', ReviewRoutes);
 
 // Mount Admin User Management under /api/admin/users
 rootRouter.use('/admin/users', AdminUserRoutes);
+
+// Mount Admin Property Management under /api/admin/properties
+rootRouter.use('/admin/properties', AdminPropertyRoutes);
+
+// Mount Admin Rental Management under /api/admin/rentals
+rootRouter.use('/admin/rentals', AdminRentalRoutes);
 
 // Mount API versions
 rootRouter.use('/v1', v1Router);
