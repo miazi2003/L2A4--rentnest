@@ -10,11 +10,151 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String          @id @default(uuid())
+  email          String          @unique
+  password       String
+  name           String?
+  role           UserRole        @default(TENANT)
+  status         UserStatus      @default(ACTIVE)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // Relations
+  properties     Property[]      @relation("LandlordProperties")
+  rentalRequests RentalRequest[] @relation("TenantRentalRequests")
+  reviews        Review[]        @relation("TenantReviews")
 
   @@map("users")
+}
+
+model Category {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  properties  Property[]
+
+  @@map("categories")
+}
+
+model Property {
+  id           String               @id @default(uuid())
+  title        String
+  description  String
+  price        Decimal              @db.Decimal(10, 2)
+  address      String
+  latitude     Float?
+  longitude    Float?
+  images       String[]
+  availability PropertyAvailability @default(AVAILABLE)
+  landlordId   String
+  categoryId   String
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  // Relations
+  landlord     User                 @relation("LandlordProperties", fields: [landlordId], references: [id], onDelete: Cascade)
+  category     Category             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  rentalRequests RentalRequest[]
+  reviews      Review[]
+
+  @@index([landlordId])
+  @@index([categoryId])
+  @@index([availability])
+  @@map("properties")
+}
+
+model RentalRequest {
+  id         String              @id @default(uuid())
+  propertyId String
+  tenantId   String
+  startDate  DateTime
+  endDate    DateTime
+  totalPrice Decimal             @db.Decimal(10, 2)
+  status     RentalRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  // Relations
+  property   Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenant     User                @relation("TenantRentalRequests", fields: [tenantId], references: [id], onDelete: Cascade)
+  payments   Payment[]
+
+  @@index([propertyId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("rental_requests")
+}
+
+model Payment {
+  id                   String        @id @default(uuid())
+  rentalRequestId      String
+  amount               Decimal       @db.Decimal(10, 2)
+  status               PaymentStatus @default(PENDING)
+  transactionReference String?       @unique
+  paymentMethod        String
+  paidAt               DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  // Relations
+  rentalRequest        RentalRequest @relation(fields: [rentalRequestId], references: [id], onDelete: Cascade)
+
+  @@index([rentalRequestId])
+  @@index([status])
+  @@map("payments")
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  propertyId String
+  tenantId   String
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenant     User     @relation("TenantReviews", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, tenantId])
+  @@index([propertyId])
+  @@index([tenantId])
+  @@map("reviews")
+}
+
+enum UserRole {
+  ADMIN
+  LANDLORD
+  TENANT
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
+enum PropertyAvailability {
+  AVAILABLE
+  RENTED
+  MAINTENANCE
+}
+
+enum RentalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
 }

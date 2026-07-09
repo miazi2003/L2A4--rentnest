@@ -5,10 +5,10 @@ const prettierConfig = require("eslint-config-prettier");
 
 module.exports = [
   {
-    ignores: ["dist/**", "node_modules/**", "prisma/**"]
+    ignores: ["dist/**", "node_modules/**", "prisma/migrations/**"]
   },
   {
-    files: ["src/**/*.ts"],
+    files: ["src/**/*.ts", "prisma/**/*.ts", "prisma/*.ts"],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
