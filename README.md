@@ -6,7 +6,7 @@ RentNest is a production-ready, high-performance backend solution for property r
 
 ## Tech Stack
 
-- **Runtime & Framework**: Node.js, Express.js (TypeScript)
+- **Framework**: Node.js, Express.js (TypeScript)
 - **Database & ORM**: PostgreSQL, Prisma ORM
 - **Authentication**: JSON Web Tokens (JWT), bcryptjs password hashing
 - **Input Validation**: Zod schema validation
