@@ -1,7 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { RentalService } from './rental.service';
 import { ApiResponse } from '../../utils/apiResponse';
-import { IRentalQuery, ILandlordRentalQuery, IUpdateRentalStatusInput } from './rental.validation';
+// import { IRentalQuery, ILandlordRentalQuery, IUpdateRentalStatusInput } from './rental.validation';
+import {
+  rentalQuerySchema,
+  landlordRentalQuerySchema,
+  IUpdateRentalStatusInput,
+} from './rental.validation';
 
 /**
  * Controller submitting a new rental request.
@@ -30,10 +35,12 @@ const getMyRentalRequests = async (
 ): Promise<void> => {
   try {
     const tenantId = req.user!.id;
-    const result = await RentalService.getMyRentalRequests(
-      tenantId,
-      req.query as unknown as IRentalQuery,
-    );
+  const parsed = rentalQuerySchema.parse(req.query);
+
+const result = await RentalService.getMyRentalRequests(
+  tenantId,
+  parsed,
+);
     ApiResponse.success(
       res,
       200,
@@ -74,10 +81,12 @@ const getLandlordRentalRequests = async (
 ): Promise<void> => {
   try {
     const landlordId = req.user!.id;
-    const result = await RentalService.getLandlordRentalRequests(
-      landlordId,
-      req.query as unknown as ILandlordRentalQuery,
-    );
+    const parsed = landlordRentalQuerySchema.parse(req.query);
+
+const result = await RentalService.getLandlordRentalRequests(
+  landlordId,
+  parsed,
+);
     ApiResponse.success(
       res,
       200,
