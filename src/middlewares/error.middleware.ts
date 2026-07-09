@@ -34,6 +34,10 @@ export const errorHandler = (
     }
   } else if (err instanceof Prisma.PrismaClientValidationError) {
     error = new AppError('Invalid database operation request.', 400, true);
+  } else if (err.name === 'JsonWebTokenError') {
+    error = new AppError('Invalid token', 401, true);
+  } else if (err.name === 'TokenExpiredError') {
+    error = new AppError('Token has expired', 401, true);
   }
 
   const statusCode = error instanceof AppError ? error.statusCode : 500;
@@ -50,15 +54,7 @@ export const errorHandler = (
   }
 
   // Build the error response object
-  const errorDetails = {
-    ...(errors ? { details: errors } : {}),
-    ...(env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
-  };
+  const errorDetails = errors || (env.NODE_ENV === 'development' ? { stack: err.stack } : null);
 
-  ApiResponse.error(
-    res,
-    statusCode,
-    message,
-    Object.keys(errorDetails).length > 0 ? errorDetails : undefined,
-  );
+  ApiResponse.error(res, statusCode, message, errorDetails);
 };

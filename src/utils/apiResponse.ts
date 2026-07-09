@@ -5,7 +5,7 @@ export interface ApiResponsePayload<T = unknown> {
   message: string;
   data?: T;
   meta?: unknown;
-  errors?: unknown;
+  errorDetails?: unknown;
 }
 
 export class ApiResponse {
@@ -32,12 +32,17 @@ export class ApiResponse {
   /**
    * Send an error API response.
    */
-  static error(res: Response, statusCode: number, message: string, errors?: unknown): Response {
+  static error(
+    res: Response,
+    statusCode: number,
+    message: string,
+    errorDetails?: unknown,
+  ): Response {
     const payload: ApiResponsePayload = {
       success: false,
       message,
+      errorDetails: errorDetails !== undefined ? errorDetails : null,
     };
-    if (errors !== undefined) payload.errors = errors;
 
     return res.status(statusCode).json(payload);
   }
