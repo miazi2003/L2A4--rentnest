@@ -1,224 +1,180 @@
-# RentNest Backend Starter
+# RentNest Backend
 
-Production-ready, highly scalable, and type-safe backend starter for RentNest built with Node.js, Express, TypeScript, Prisma ORM, and PostgreSQL.
+RentNest is a production-ready, high-performance backend solution for property rentals, structured using Node.js, Express, TypeScript, Prisma ORM, and PostgreSQL. It features robust user authentication, property searches, booking workflow management, Stripe transaction operations, review controls, and administrative management tools.
 
-## Table of Contents
+---
 
-- [Features](#features)
-- [Architecture & Folder Structure](#architecture--folder-structure)
-- [Prerequisites](#prerequisites)
-- [Getting Started](#getting-started)
-- [Available Scripts](#available-scripts)
-- [Environment Configuration](#environment-configuration)
-- [Prisma ORM (Prisma 7)](#prisma-orm-prisma-7)
-- [Error Handling](#error-handling)
-- [API Responses](#api-responses)
-- [Code Style & Quality](#code-style--quality)
+## Tech Stack
+
+- **Runtime & Framework**: Node.js, Express.js (TypeScript)
+- **Database & ORM**: PostgreSQL, Prisma ORM
+- **Authentication**: JSON Web Tokens (JWT), bcryptjs password hashing
+- **Input Validation**: Zod schema validation
+- **Payment Processing**: Stripe Node.js SDK
+- **Development Tooling**: ts-node, nodemon, ESLint (Flat Config), Prettier
 
 ---
 
 ## Features
 
-- **TypeScript v6**: Full type safety, modular structures, and standard CommonJS compilation.
-- **Express App**: High-performance HTTP server setup with pre-integrated production-ready security middlewares.
-  - [Helmet](https://helmetjs.github.io/) for securing HTTP headers.
-  - [CORS](https://github.com/expressjs/cors) with dynamic origin whitelist support.
-  - [Express Rate Limit](https://github.com/express-rate-limit/express-rate-limit) to mitigate brute-force and denial-of-service attempts.
-- **Environment Validation**: Strictly-typed configurations using [Zod](https://zod.dev/) schemas. Validation failures crash the server instantly during startup, preventing run-time configuration bugs.
-- **Prisma 7 & PostgreSQL**: Modern setup using PostgreSQL Driver Adapter (`@prisma/adapter-pg` and `pg` pool) for optimal connection pooling and Prisma 7 compliance.
-- **Global Error Handling**: Custom `AppError` class hierarchy distinguishing between operational errors and programmer bugs, combined with standard Prisma error mappings.
-- **Standardized API Responses**: `ApiResponse` utility for consistent, predictable JSON success and error payload contracts.
-- **API Versioning**: Scalable route design separating versions under `/api/v1/...`.
-- **Quality Assurance**: Integrated **ESLint** (v10 flat configurations) and **Prettier** for automated code formatting and lint verification.
+1. **Authentication & Authorization**: Role-based access controls for Tenants, Landlords, and Admins. Protected sessions verify token signatures and block actions by banned accounts.
+2. **User Profiles**: Manage profile details (name and phone) and securely update password hashes with verification.
+3. **Property Listings**: Landlords can list, update, or remove properties. Tenants can query properties using advanced search (case-insensitive title and address matching), price range filters, category parameters, and sorting options.
+4. **Rental Requests**: Tenants can submit rental requests. Includes duration-based total pricing calculation, duplicates checks, and landlord-specific approvals or rejections workflows.
+5. **Stripe Payments**: Creates Stripe Payment Intents and processes confirmations to change booking states to active, complete with robust db transaction rollbacks on failure.
+6. **Reviews System**: Tenants can review properties they have completed renting, featuring average score and count aggregates in search feeds.
+7. **Admin Operations**: Administrative controls to view detailed listings, view booking aggregates, search platform users, and manage account statuses (Active / Banned).
 
 ---
 
-## Architecture & Folder Structure
+## Folder Architecture
 
-The project follows a modular, scalable layer design, facilitating clean division of concerns as features are added:
+The project enforces a strict, modular **Service-Controller-Route-Validation** architecture:
 
-```
-rentnest/
+```text
 ├── src/
-│   ├── app.ts                 # Express application initialization & middleware mounting
-│   ├── server.ts              # HTTP server entrypoint, database checks, and process handlers
-│   ├── config/                # App configuration (Environment validation, DB client)
-│   │   ├── db.ts              # Prisma Client wrapper (with driver adapters & dev singleton pattern)
-│   │   └── env.ts             # Zod environment variable parsing schema
-│   ├── constants/             # Application-wide constants & status messages
-│   ├── errors/                # Unified custom AppError classes
-│   │   └── appError.ts
-│   ├── middlewares/           # Global Express middlewares
-│   │   ├── error.middleware.ts        # Express centralized error responder
-│   │   ├── notFound.middleware.ts     # 404 Route handler
-│   │   └── requestLogger.middleware.ts # HTTP morgan logger matching custom output
-│   ├── routes/                # Route specifications
-│   │   ├── index.ts           # Router aggregator (/api)
-│   │   └── v1/                # Version 1 root router (/api/v1)
-│   │       └── index.ts
-│   ├── utils/                 # General-purpose utility helpers
-│   │   ├── apiResponse.ts     # Custom response standardizer
-│   │   └── logger.ts          # Colorized CLI console logger
-│   └── modules/               # Feature modules (Users, Property, Bookings, etc. go here)
+│   ├── config/             # Database connection, env parsing, and stripe setups
+│   ├── errors/             # Custom application error classes (AppError, NotFound, etc.)
+│   ├── middlewares/        # Authentication guards, error logging, and validation wrappers
+│   ├── modules/            # Core business modules
+│   │   ├── auth/           # Login, Register, and Session states
+│   │   ├── profile/        # User Profile settings and password changes
+│   │   ├── category/       # Category CRUD operations
+│   │   ├── property/       # Landlord properties, search feeds, and detail lookups
+│   │   ├── rental/         # Booking requests, landlord decision controls
+│   │   ├── payment/        # Stripe payments generation and processing
+│   │   ├── review/         # Customer reviews and aggregates
+│   │   └── admin/          # Platform administration controls
+│   ├── routes/             # Core API endpoints routing mounts
+│   ├── utils/              # ApiResponse helper and logging structures
+│   ├── app.ts              # Express application configurations
+│   └── server.ts           # HTTP server bootstrapping
 ├── prisma/
-│   ├── schema.prisma          # Prisma schema defining database models
-│   └── migrations/            # Generated SQL migrations (managed by Prisma)
-├── eslint.config.js           # ESLint v10 Flat config
-├── nodemon.json               # Nodemon watcher configuration
-├── tsconfig.json              # TypeScript compilation setup
-├── .prettierrc                # Prettier code styling preferences
-├── .prettierignore            # Prettier build paths exception listing
-└── .gitignore                 # Standard Node git exclusions
+│   ├── schema.prisma       # Database design models
+│   ├── seed.ts             # Seeding routine for default values
+│   └── migrations/         # PostgreSQL schema version migrations
+├── .env.example            # Environment variables template
+├── tsconfig.json           # TypeScript configuration
+└── package.json            # Scripts and dependencies setup
 ```
 
 ---
 
-## Prerequisites
+## Environment Variables
 
-- **Node.js**: >= 18.x (Recommended: v20 LTS)
-- **PostgreSQL**: Local or hosted database instance
+Create a `.env` file in the root workspace folder and configure the following variables:
+
+```env
+PORT=5000
+NODE_ENV=development
+DATABASE_URL="postgresql://username:password@localhost:5432/rentnest?schema=public"
+CORS_ORIGIN=*
+
+# JWT Configuration
+JWT_SECRET="rentnest-super-secret-key-2026"
+JWT_EXPIRES_IN="7d"
+
+# Stripe Configuration
+STRIPE_SECRET_KEY="sk_test_..."
+```
 
 ---
 
-## Getting Started
+## Installation & Setup
 
-### 1. Clone the repository and install dependencies
+Follow these commands to install, seed, and run the project locally:
 
+### 1. Clone Repository & Install Dependencies
 ```bash
+git clone https://github.com/your-username/rentnest.git
+cd rentnest
 npm install
 ```
 
-### 2. Set up environment variables
-
-Copy `.env.example` to `.env` and fill in your values (specifically your database connection details):
-
+### 2. Configure Environment Variables
+Copy `.env.example` into `.env` and fill in your database credentials and Stripe keys:
 ```bash
 cp .env.example .env
 ```
 
-### 3. Initialize Prisma client & database
-
-Generate the Prisma Client client-side files:
-
+### 3. Generate Prisma Client
+Generate the type definitions from the Prisma schema:
 ```bash
-npm run prisma:generate
+npx prisma generate
 ```
 
-Run database migrations to initialize tables (requires running PostgreSQL instance matching your `DATABASE_URL`):
-
+### 4. Run Migrations
+Run the initial SQL migrations to create the database schemas:
 ```bash
-npm run prisma:migrate
+npx prisma migrate dev --name init_db
 ```
 
-### 4. Start the development server
+### 5. Seed the Database
+Populate categories, users, properties, and rental requests:
+```bash
+npx prisma db seed
+```
 
+### 6. Start the Server
+Run the development environment using `nodemon`:
 ```bash
 npm run dev
 ```
 
-The server will initialize on the configured port (default `5000`). Test the health endpoint:
-[http://localhost:5000/api/v1/health](http://localhost:5000/api/v1/health)
+---
+
+## Seeding & Default User Accounts
+
+Seeding generates the following default credentials for testing and review:
+
+| User Role | Email | Password |
+| :--- | :--- | :--- |
+| **Admin** | `admin@rentnest.com` | `Admin@RentNest2026` |
+| **Landlord** | `landlord@rentnest.com` | `Landlord@RentNest2026` |
+| **Tenant** | `tenant@rentnest.com` | `Tenant@RentNest2026` |
 
 ---
 
-## Available Scripts
+## API Endpoints & Postman Documentation
 
-- `npm run dev`: Starts the development server using Nodemon and ts-node. Watches for changes in `src/**/*.ts`.
-- `npm run build`: Compiles `.ts` files into production-ready JavaScript inside the `dist/` directory.
-- `npm run start`: Runs the compiled server from `dist/server.js` (used in production).
-- `npm run prisma:generate`: Generates client code for schema configuration.
-- `npm run prisma:migrate`: Runs migrations in development.
-- `npm run prisma:studio`: Opens the Prisma Studio GUI interface to interact with your data.
-- `npm run lint`: Analyzes code for quality concerns and warnings using ESLint.
-- `npm run lint:fix`: Fixes lint warnings and formatting issues.
-- `npm run format`: Standardizes code formatting across files using Prettier.
-- `npm run format:check`: Validates formatting without writing changes.
+- **API Base URL**: `http://localhost:5000/api`
+- **Postman API Documentation**: A complete Postman collection is generated in the root directory: [`rentnest_api_collection.json`](./rentnest_api_collection.json). You can import this file directly into Postman to test all endpoints.
 
 ---
 
-## Environment Configuration
+## Scripts
 
-Strictly validated environment variables located in [src/config/env.ts](file:///C:/Users/sumai/OneDrive/Desktop/rentnest/src/config/env.ts).
+Use the following npm tasks defined in `package.json`:
 
-Available variables:
-
-| Variable | Description | Default |
-| --- | --- | --- |
-| `PORT` | HTTP Server port | `5000` |
-| `NODE_ENV` | Application environment (`development`, `production`, `test`) | `development` |
-| `DATABASE_URL` | PostgreSQL connection URL | *Required* |
-| `CORS_ORIGIN` | CORS white-listed URL(s) (comma-separated or `*`) | `*` |
-| `RATE_LIMIT_WINDOW_MS` | Rate limit duration window in milliseconds | `900000` (15 mins) |
-| `RATE_LIMIT_MAX` | Max allowed requests per IP within the window | `100` |
+- `npm run dev`: Starts the TypeScript development server with nodemon reloading.
+- `npm run build`: Compiles TypeScript files into JavaScript (`dist/`).
+- `npm run start`: Starts the compiled production application.
+- `npm run lint`: Runs ESLint checks.
+- `npm run format`: Standardizes source file formatting using Prettier.
 
 ---
 
-## Prisma ORM (Prisma 7)
+## Production Deployment (Render or Vercel)
 
-Prisma 7 decouples the direct connection string injection from `schema.prisma`. 
+### 1. Database Setup
+Ensure you host a PostgreSQL database (e.g., Supabase, Neon, or Render PostgreSQL). Copy the connection URL and assign it to the `DATABASE_URL` environment variable.
 
-1. **Configuration**: Database URLs are configured inside [prisma.config.ts](file:///C:/Users/sumai/OneDrive/Desktop/rentnest/prisma.config.ts) using standard node environments.
-2. **Prisma Client Setup**: Inside [src/config/db.ts](file:///C:/Users/sumai/OneDrive/Desktop/rentnest/src/config/db.ts), the database connection pool is created using standard `pg` and wrapped inside `@prisma/adapter-pg`. This guarantees support for standard local PostgreSQL servers under Prisma 7.
+### 2. Configure Build Commands
+For web service hosting environments (like Render), configure the following setup parameters:
+- **Build Command**: `npm install && npm run build && npx prisma generate`
+- **Start Command**: `npx prisma migrate deploy && npm run start`
 
----
-
-## Error Handling
-
-Errors should be thrown directly from services, controllers, or middlewares using our custom classes, located in [src/errors/appError.ts](file:///C:/Users/sumai/OneDrive/Desktop/rentnest/src/errors/appError.ts):
-
-- `BadRequestError(message, errors)`
-- `UnauthorizedError(message)`
-- `ForbiddenError(message)`
-- `NotFoundError(message)`
-- `ConflictError(message)`
-- `InternalServerError(message, details)`
-
-The global [errorHandler](file:///C:/Users/sumai/OneDrive/Desktop/rentnest/src/middlewares/error.middleware.ts) middleware intercepts these errors, handles database-specific code mappings (like unique constraints), hides developer stack traces in production environments, and responds with a standard payload structure.
+### 3. Add Production Environment Variables
+Configure the production environment variables in your hosting settings panel:
+- `PORT` (assigned automatically by the platform or defaults to `5000`)
+- `NODE_ENV=production`
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `JWT_EXPIRES_IN`
+- `STRIPE_SECRET_KEY`
 
 ---
 
-## API Responses
+## License
 
-All responses are standardized using the `ApiResponse` class in [src/utils/apiResponse.ts](file:///C:/Users/sumai/OneDrive/Desktop/rentnest/src/utils/apiResponse.ts).
-
-### Success Payload Example
-
-`ApiResponse.success(res, 200, "Successfully fetched health check data", data);`
-
-```json
-{
-  "success": true,
-  "message": "Successfully fetched health check data",
-  "data": {
-    "uptime": 1.48208,
-    "timestamp": "2026-07-09T09:12:03Z",
-    "status": "UP"
-  }
-}
-```
-
-### Error Payload Example
-
-`ApiResponse.error(res, 400, "Invalid email address formatting", errors);`
-
-```json
-{
-  "success": false,
-  "message": "Invalid email address formatting",
-  "errors": {
-    "details": ["Email must contain a valid domain extension."]
-  }
-}
-```
-
----
-
-## Code Style & Quality
-
-This project enforces unified styling using Prettier and ESLint. Configurations are located in `.prettierrc` and `eslint.config.js`.
-
-To verify compliance or automatically format your workspace:
-```bash
-npm run format
-npm run lint
-```
+This project is licensed under the [MIT License](LICENSE).
