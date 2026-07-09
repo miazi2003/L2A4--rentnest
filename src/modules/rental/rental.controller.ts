@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { RentalService } from './rental.service';
 import { ApiResponse } from '../../utils/apiResponse';
-import { IRentalQuery } from './rental.validation';
+import { IRentalQuery, ILandlordRentalQuery, IUpdateRentalStatusInput } from './rental.validation';
 
 /**
  * Controller submitting a new rental request.
@@ -64,8 +64,58 @@ const getRentalRequestDetails = async (
   }
 };
 
+/**
+ * Controller retrieving rental requests submitted for properties owned by the landlord.
+ */
+const getLandlordRentalRequests = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const landlordId = req.user!.id;
+    const result = await RentalService.getLandlordRentalRequests(
+      landlordId,
+      req.query as unknown as ILandlordRentalQuery,
+    );
+    ApiResponse.success(
+      res,
+      200,
+      'Landlord rental requests retrieved successfully',
+      result.data,
+      result.meta,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Controller handling landlord decision (approval/rejection) on a rental request.
+ */
+const updateRentalRequestStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const landlordId = req.user!.id;
+    const result = await RentalService.updateRentalRequestStatus(
+      id,
+      landlordId,
+      req.body as IUpdateRentalStatusInput,
+    );
+    ApiResponse.success(res, 200, 'Rental request status updated successfully', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const RentalController = {
   createRentalRequest,
   getMyRentalRequests,
   getRentalRequestDetails,
+  getLandlordRentalRequests,
+  updateRentalRequestStatus,
 };

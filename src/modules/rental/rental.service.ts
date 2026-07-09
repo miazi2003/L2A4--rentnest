@@ -7,7 +7,7 @@ import {
   ConflictError,
 } from '../../errors/appError';
 import { ICreateRentalInput } from './rental.interface';
-import { IRentalQuery } from './rental.validation';
+import { IRentalQuery, ILandlordRentalQuery, IUpdateRentalStatusInput } from './rental.validation';
 
 /**
  * Create a new rental request for a property by an authenticated tenant.
@@ -202,8 +202,132 @@ const getRentalRequestDetails = async (id: string, tenantId: string) => {
   };
 };
 
+/**
+ * Retrieve all rental requests submitted for properties owned by the authenticated landlord.
+ */
+const getLandlordRentalRequests = async (landlordId: string, query: ILandlordRentalQuery) => {
+  const { page, limit, status } = query;
+
+  const where: Prisma.RentalRequestWhereInput = {
+    property: {
+      landlordId,
+    },
+  };
+
+  if (status) {
+    where.status = status;
+  }
+
+  const skip = (page - 1) * limit;
+  const take = limit;
+
+  const [total, requests] = await prisma.$transaction([
+    prisma.rentalRequest.count({ where }),
+    prisma.rentalRequest.findMany({
+      where,
+      skip,
+      take,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+          },
+        },
+        property: {
+          include: {
+            category: true,
+          },
+        },
+        payments: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+          select: {
+            status: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  const mappedRequests = requests.map((request) => {
+    const paymentStatus = request.payments[0]?.status || 'PENDING';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { payments, property, ...requestData } = request;
+    const { category, ...propertyData } = property;
+
+    return {
+      ...requestData,
+      paymentStatus,
+      property: {
+        ...propertyData,
+        category,
+      },
+    };
+  });
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages,
+    },
+    data: mappedRequests,
+  };
+};
+
+/**
+ * Approve or reject a pending rental request by its property owner landlord.
+ */
+const updateRentalRequestStatus = async (
+  id: string,
+  landlordId: string,
+  payload: IUpdateRentalStatusInput,
+) => {
+  const rental = await prisma.rentalRequest.findUnique({
+    where: { id },
+    include: {
+      property: true,
+    },
+  });
+
+  if (!rental) {
+    throw new NotFoundError('Rental request not found');
+  }
+
+  // Prevent landlords from modifying requests belonging to other landlords
+  if (rental.property.landlordId !== landlordId) {
+    throw new ForbiddenError('You do not have permission to manage requests for this property');
+  }
+
+  // Only PENDING requests can be approved or rejected
+  if (rental.status !== 'PENDING') {
+    throw new BadRequestError('Only pending rental requests can be approved or rejected');
+  }
+
+  return prisma.rentalRequest.update({
+    where: { id },
+    data: {
+      status: payload.status,
+    },
+  });
+};
+
 export const RentalService = {
   createRentalRequest,
   getMyRentalRequests,
   getRentalRequestDetails,
+  getLandlordRentalRequests,
+  updateRentalRequestStatus,
 };

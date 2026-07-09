@@ -2,7 +2,13 @@ import { Router } from 'express';
 import { UserRole } from '@prisma/client';
 import { RentalController } from './rental.controller';
 import { validateBody, validateParams, validateQuery } from '../../middlewares/validate.middleware';
-import { createRentalSchema, rentalIdParamSchema, rentalQuerySchema } from './rental.validation';
+import {
+  createRentalSchema,
+  rentalIdParamSchema,
+  rentalQuerySchema,
+  landlordRentalQuerySchema,
+  updateRentalStatusSchema,
+} from './rental.validation';
 import { auth } from '../../middlewares/auth.middleware';
 
 const rentalRouter = Router();
@@ -36,3 +42,32 @@ rentalRouter.get(
 );
 
 export const RentalRoutes = rentalRouter;
+
+// Landlord requests router
+const landlordRouter = Router();
+landlordRouter.use(auth(UserRole.LANDLORD));
+
+/**
+ * @route GET /api/landlord/requests
+ * @desc Get all rental requests for properties owned by the landlord
+ * @access Landlord
+ */
+landlordRouter.get(
+  '/',
+  validateQuery(landlordRentalQuerySchema),
+  RentalController.getLandlordRentalRequests,
+);
+
+/**
+ * @route PATCH /api/landlord/requests/:id
+ * @desc Approve or reject a pending rental request
+ * @access Landlord
+ */
+landlordRouter.patch(
+  '/:id',
+  validateParams(rentalIdParamSchema),
+  validateBody(updateRentalStatusSchema),
+  RentalController.updateRentalRequestStatus,
+);
+
+export const LandlordRentalRoutes = landlordRouter;
