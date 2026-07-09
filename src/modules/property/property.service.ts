@@ -7,6 +7,7 @@ import { IPropertyQuery } from './property.validation';
 /**
  * Get all available properties with filters, search, sorting, and pagination.
  */
+
 const getAvailableProperties = async (query: IPropertyQuery) => {
   const {
     search,
@@ -26,6 +27,9 @@ const getAvailableProperties = async (query: IPropertyQuery) => {
     availability: availability || 'AVAILABLE',
   };
 
+console.log("SERVICE QUERY:", query);
+console.log("PAGE:", query.page);
+console.log("LIMIT:", query.limit);
   if (search) {
     where.OR = [
       {

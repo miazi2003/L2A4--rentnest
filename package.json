@@ -3,22 +3,20 @@
   "version": "1.0.0",
   "description": "",
   "main": "dist/server.js",
- "scripts": {
-  "dev": "nodemon",
-  "build": "rimraf dist && tsc",
-  "start": "node dist/server.js",
-
-  "prisma:generate": "prisma generate",
-  "prisma:migrate": "prisma migrate deploy",
-  "prisma:migrate:dev": "prisma migrate dev",
-  "prisma:seed": "prisma db seed",
-  "prisma:studio": "prisma studio",
-
-  "lint": "eslint \"src/**/*.ts\" \"prisma/*.ts\" \"prisma/**/*.ts\"",
-  "lint:fix": "eslint \"src/**/*.ts\" \"prisma/*.ts\" \"prisma/**/*.ts\" --fix",
-  "format": "prettier --write \"src/**/*.ts\" \"prisma/*.ts\" \"prisma/**/*.ts\"",
-  "format:check": "prettier --check \"src/**/*.ts\" \"prisma/*.ts\" \"prisma/**/*.ts\""
-},
+  "scripts": {
+    "dev": "nodemon",
+    "build": "rimraf dist && tsc",
+    "start": "node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:seed": "prisma db seed",
+    "prisma:studio": "prisma studio",
+    "lint": "eslint \"src/**/*.ts\" \"prisma/*.ts\" \"prisma/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" \"prisma/*.ts\" \"prisma/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"prisma/*.ts\" \"prisma/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"prisma/*.ts\" \"prisma/**/*.ts\""
+  },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
   },
