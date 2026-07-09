@@ -12,6 +12,7 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().default(100),
   JWT_SECRET: z.string().default('rentnest-super-secret-key-2026'),
   JWT_EXPIRES_IN: z.string().default('7d'),
+  STRIPE_SECRET_KEY: z.string().default('sk_test_rentnest_mock_secret_key_2026'),
 });
 
 const parseEnv = () => {
