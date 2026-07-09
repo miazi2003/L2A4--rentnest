@@ -3,6 +3,7 @@ import v1Router from './v1';
 import { AuthRoutes } from '../modules/auth/auth.route';
 import { CategoryPublicRoutes, CategoryAdminRoutes } from '../modules/category/category.route';
 import { PropertyPublicRoutes, PropertyLandlordRoutes } from '../modules/property/property.route';
+import { RentalRoutes } from '../modules/rental/rental.route';
 
 const rootRouter = Router();
 
@@ -20,6 +21,9 @@ rootRouter.use('/properties', PropertyPublicRoutes);
 
 // Mount Property Landlord routes under /api/landlord/properties
 rootRouter.use('/landlord/properties', PropertyLandlordRoutes);
+
+// Mount Rental Requests under /api/rentals
+rootRouter.use('/rentals', RentalRoutes);
 
 // Mount API versions
 rootRouter.use('/v1', v1Router);
