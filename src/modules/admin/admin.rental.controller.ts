@@ -1,16 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
 import { AdminRentalService } from './admin.rental.service';
 import { ApiResponse } from '../../utils/apiResponse';
-import { IAdminRentalQuery } from './admin.rental.validation';
+import { adminRentalQuerySchema } from './admin.rental.validation';
 
 /**
  * Controller listing rental requests.
  */
-const getAllRentals = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const getAllRentals = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const result = await AdminRentalService.getAllRentals(
-      req.query as unknown as IAdminRentalQuery,
-    );
+    const parsed = adminRentalQuerySchema.parse(req.query);
+
+    const result = await AdminRentalService.getAllRentals(parsed);
+
     ApiResponse.success(
       res,
       200,

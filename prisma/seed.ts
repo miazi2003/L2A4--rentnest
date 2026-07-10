@@ -51,7 +51,7 @@ async function main() {
 
   // 2. Seed Default Users with Hashed Passwords
   console.log('Creating default users...');
-  const adminPassword = await bcrypt.hash('Admin@RentNest2026', 10);
+  const adminPassword = await bcrypt.hash('Admin@RentNest2027', 10);
   const landlordPassword = await bcrypt.hash('Landlord@RentNest2026', 10);
   const tenantPassword = await bcrypt.hash('Tenant@RentNest2026', 10);
 

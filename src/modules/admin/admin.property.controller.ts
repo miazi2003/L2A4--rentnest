@@ -1,17 +1,28 @@
 import { Request, Response, NextFunction } from 'express';
 import { AdminPropertyService } from './admin.property.service';
 import { ApiResponse } from '../../utils/apiResponse';
-import { IAdminPropertyQuery } from './admin.property.validation';
+import { adminPropertyQuerySchema } from './admin.property.validation';
 
 /**
  * Controller retrieving properties list with search and filter parameters.
  */
-const getAllProperties = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const getAllProperties = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const result = await AdminPropertyService.getAllProperties(
-      req.query as unknown as IAdminPropertyQuery,
+    const parsed = adminPropertyQuerySchema.parse(req.query);
+
+    const result = await AdminPropertyService.getAllProperties(parsed);
+
+    ApiResponse.success(
+      res,
+      200,
+      'Properties retrieved successfully',
+      result.data,
+      result.meta,
     );
-    ApiResponse.success(res, 200, 'Properties retrieved successfully', result.data, result.meta);
   } catch (error) {
     next(error);
   }
