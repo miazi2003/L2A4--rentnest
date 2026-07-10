@@ -8,17 +8,15 @@ import { propertyQuerySchema } from './property.validation';
  * Controller retrieving all available properties.
  */
 
-
 const getAvailableProperties = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    console.log("REQ QUERY:", req.query);
     const parsed = propertyQuerySchema.parse(req.query);
 
-const result = await PropertyService.getAvailableProperties(parsed);
+    const result = await PropertyService.getAvailableProperties(parsed);
     ApiResponse.success(
       res,
       200,

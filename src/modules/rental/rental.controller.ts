@@ -35,12 +35,9 @@ const getMyRentalRequests = async (
 ): Promise<void> => {
   try {
     const tenantId = req.user!.id;
-  const parsed = rentalQuerySchema.parse(req.query);
+    const parsed = rentalQuerySchema.parse(req.query);
 
-const result = await RentalService.getMyRentalRequests(
-  tenantId,
-  parsed,
-);
+    const result = await RentalService.getMyRentalRequests(tenantId, parsed);
     ApiResponse.success(
       res,
       200,
@@ -83,10 +80,7 @@ const getLandlordRentalRequests = async (
     const landlordId = req.user!.id;
     const parsed = landlordRentalQuerySchema.parse(req.query);
 
-const result = await RentalService.getLandlordRentalRequests(
-  landlordId,
-  parsed,
-);
+    const result = await RentalService.getLandlordRentalRequests(landlordId, parsed);
     ApiResponse.success(
       res,
       200,

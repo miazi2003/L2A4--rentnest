@@ -43,12 +43,9 @@ const getPaymentHistory = async (
 ): Promise<void> => {
   try {
     const tenantId = req.user!.id;
-   const parsed = paymentQuerySchema.parse(req.query);
+    const parsed = paymentQuerySchema.parse(req.query);
 
-const result = await PaymentService.getPaymentHistory(
-  tenantId,
-  parsed,
-);
+    const result = await PaymentService.getPaymentHistory(tenantId, parsed);
     ApiResponse.success(
       res,
       200,

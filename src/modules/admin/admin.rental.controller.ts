@@ -6,11 +6,7 @@ import { adminRentalQuerySchema } from './admin.rental.validation';
 /**
  * Controller listing rental requests.
  */
-const getAllRentals = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
+const getAllRentals = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const parsed = adminRentalQuerySchema.parse(req.query);
 

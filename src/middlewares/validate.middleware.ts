@@ -36,11 +36,8 @@ export const validateParams = (schema: z.ZodTypeAny) => {
  * Middleware validating request query parameters against Zod schema.
  */
 export const validateQuery = (schema: z.ZodTypeAny) => {
-  
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      console.log("VALIDATE QUERY MIDDLEWARE");
-console.log(req.query);
       const parsed = await schema.parseAsync(req.query);
 
       Object.assign(req.query, parsed);

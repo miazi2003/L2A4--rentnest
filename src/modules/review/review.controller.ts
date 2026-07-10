@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ReviewService } from './review.service';
 import { ApiResponse } from '../../utils/apiResponse';
-import {  reviewQuerySchema } from './review.validation';
+import { reviewQuerySchema } from './review.validation';
 
 /**
  * Controller creating a review for a property.
@@ -31,12 +31,9 @@ const getPropertyReviews = async (
     //   req.query as unknown as IReviewQuery,
     // );
 
-     const parsed = reviewQuerySchema.parse(req.query);
-    
-    const result = await ReviewService.getPropertyReviews(
-      propertyId,
-      parsed,
-    );
+    const parsed = reviewQuerySchema.parse(req.query);
+
+    const result = await ReviewService.getPropertyReviews(propertyId, parsed);
     ApiResponse.success(
       res,
       200,

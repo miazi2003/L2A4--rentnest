@@ -1,28 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { AdminUserService } from './admin.service';
 import { ApiResponse } from '../../utils/apiResponse';
-import { adminUserQuerySchema,  IUpdateUserStatusInput } from './admin.validation';
+import { adminUserQuerySchema, IUpdateUserStatusInput } from './admin.validation';
 
 /**
  * Controller retrieving all users with query filters.
  */
-const getAllUsers = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
+const getAllUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const parsed = adminUserQuerySchema.parse(req.query);
 
     const result = await AdminUserService.getAllUsers(parsed);
 
-    ApiResponse.success(
-      res,
-      200,
-      'Users list retrieved successfully',
-      result.data,
-      result.meta,
-    );
+    ApiResponse.success(res, 200, 'Users list retrieved successfully', result.data, result.meta);
   } catch (error) {
     next(error);
   }
