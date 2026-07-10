@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from './payment.service';
 import { ApiResponse } from '../../utils/apiResponse';
-import { IPaymentQuery } from './payment.validation';
+import { paymentQuerySchema } from './payment.validation';
 
 /**
  * Controller creating a Stripe Payment Intent for a rental request.
@@ -43,10 +43,12 @@ const getPaymentHistory = async (
 ): Promise<void> => {
   try {
     const tenantId = req.user!.id;
-    const result = await PaymentService.getPaymentHistory(
-      tenantId,
-      req.query as unknown as IPaymentQuery,
-    );
+   const parsed = paymentQuerySchema.parse(req.query);
+
+const result = await PaymentService.getPaymentHistory(
+  tenantId,
+  parsed,
+);
     ApiResponse.success(
       res,
       200,
