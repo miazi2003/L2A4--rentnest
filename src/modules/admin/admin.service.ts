@@ -46,25 +46,26 @@ const getAllUsers = async (query: IAdminUserQuery) => {
     orderBy.createdAt = 'desc';
   }
 
-  const [total, users] = await prisma.$transaction([
-    prisma.user.count({ where }),
-    prisma.user.findMany({
-      where,
-      skip,
-      take,
-      orderBy,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    }),
-  ]);
+const total = await prisma.user.count({
+  where,
+});
+
+const users = await prisma.user.findMany({
+  where,
+  skip,
+  take,
+  orderBy,
+  select: {
+    id: true,
+    name: true,
+    email: true,
+    phone: true,
+    role: true,
+    status: true,
+    createdAt: true,
+    updatedAt: true,
+  },
+});
 
   const totalPages = Math.ceil(total / limit);
 

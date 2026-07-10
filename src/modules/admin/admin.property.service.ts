@@ -50,32 +50,33 @@ const getAllProperties = async (query: IAdminPropertyQuery) => {
     orderBy.createdAt = 'desc';
   }
 
-  const [total, properties] = await prisma.$transaction([
-    prisma.property.count({ where }),
-    prisma.property.findMany({
-      where,
-      skip,
-      take,
-      orderBy,
-      include: {
-        landlord: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            role: true,
-          },
-        },
-        category: true,
-        reviews: {
-          select: {
-            rating: true,
-          },
-        },
+const total = await prisma.property.count({
+  where,
+});
+
+const properties = await prisma.property.findMany({
+  where,
+  skip,
+  take,
+  orderBy,
+  include: {
+    landlord: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
       },
-    }),
-  ]);
+    },
+    category: true,
+    reviews: {
+      select: {
+        rating: true,
+      },
+    },
+  },
+});
 
   const totalPages = Math.ceil(total / limit);
 

@@ -26,17 +26,31 @@ const getAllRentals = async (query: IAdminRentalQuery) => {
   const skip = (page - 1) * limit;
   const take = limit;
 
-  const [total, rentals] = await prisma.$transaction([
-    prisma.rentalRequest.count({ where }),
-    prisma.rentalRequest.findMany({
-      where,
-      skip,
-      take,
-      orderBy: {
-        createdAt: 'desc',
+const total = await prisma.rentalRequest.count({
+  where,
+});
+
+const rentals = await prisma.rentalRequest.findMany({
+  where,
+  skip,
+  take,
+  orderBy: {
+    createdAt: 'desc',
+  },
+  include: {
+    tenant: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
       },
+    },
+    property: {
       include: {
-        tenant: {
+        category: true,
+        landlord: {
           select: {
             id: true,
             name: true,
@@ -45,28 +59,15 @@ const getAllRentals = async (query: IAdminRentalQuery) => {
             role: true,
           },
         },
-        property: {
-          include: {
-            category: true,
-            landlord: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                role: true,
-              },
-            },
-          },
-        },
-        payments: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
       },
-    }),
-  ]);
+    },
+    payments: {
+      orderBy: {
+        createdAt: 'desc',
+      },
+    },
+  },
+});
 
   const totalPages = Math.ceil(total / limit);
 
