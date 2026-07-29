@@ -21,6 +21,13 @@ authRouter.post('/register', validateBody(registerValidationSchema), AuthControl
 authRouter.post('/login', validateBody(loginValidationSchema), AuthController.login);
 
 /**
+ * @route POST /api/auth/logout
+ * @desc Logout user and clear access token cookie
+ * @access Public
+ */
+authRouter.post('/logout', AuthController.logout);
+
+/**
  * @route GET /api/auth/me
  * @desc Retrieve profile details of logged-in user
  * @access Protected

@@ -172,28 +172,28 @@ const getPaymentHistory = async (tenantId: string, query: IPaymentQuery) => {
 
   // Query database in transaction
   const total = await prisma.payment.count({
-  where,
-});
+    where,
+  });
 
-const payments = await prisma.payment.findMany({
-  where,
-  skip,
-  take,
-  orderBy: {
-    paidAt: 'desc',
-  },
-  include: {
-    rentalRequest: {
-      include: {
-        property: {
-          include: {
-            category: true,
+  const payments = await prisma.payment.findMany({
+    where,
+    skip,
+    take,
+    orderBy: {
+      paidAt: 'desc',
+    },
+    include: {
+      rentalRequest: {
+        include: {
+          property: {
+            include: {
+              category: true,
+            },
           },
         },
       },
     },
-  },
-});
+  });
 
   const totalPages = Math.ceil(total / limit);
 

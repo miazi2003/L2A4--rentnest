@@ -89,43 +89,43 @@ const getMyRentalRequests = async (tenantId: string, query: IRentalQuery) => {
   const take = limit;
 
   // Query database in parallel
-const total = await prisma.rentalRequest.count({
-  where,
-});
+  const total = await prisma.rentalRequest.count({
+    where,
+  });
 
-const rentals = await prisma.rentalRequest.findMany({
-  where,
-  skip,
-  take,
-  orderBy: {
-    createdAt: 'desc',
-  },
-  include: {
-    property: {
-      include: {
-        category: true,
-        landlord: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            role: true,
+  const rentals = await prisma.rentalRequest.findMany({
+    where,
+    skip,
+    take,
+    orderBy: {
+      createdAt: 'desc',
+    },
+    include: {
+      property: {
+        include: {
+          category: true,
+          landlord: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              role: true,
+            },
           },
         },
       },
-    },
-    payments: {
-      orderBy: {
-        createdAt: 'desc',
+      payments: {
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 1,
+        select: {
+          status: true,
+        },
       },
-      take: 1,
-      select: {
-        status: true,
-      },
     },
-  },
-});
+  });
 
   const totalPages = Math.ceil(total / limit);
 
@@ -222,43 +222,43 @@ const getLandlordRentalRequests = async (landlordId: string, query: ILandlordRen
   const skip = (page - 1) * limit;
   const take = limit;
 
- const total = await prisma.rentalRequest.count({
-  where,
-});
+  const total = await prisma.rentalRequest.count({
+    where,
+  });
 
-const requests = await prisma.rentalRequest.findMany({
-  where,
-  skip,
-  take,
-  orderBy: {
-    createdAt: 'desc',
-  },
-  include: {
-    tenant: {
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
+  const requests = await prisma.rentalRequest.findMany({
+    where,
+    skip,
+    take,
+    orderBy: {
+      createdAt: 'desc',
+    },
+    include: {
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+        },
+      },
+      property: {
+        include: {
+          category: true,
+        },
+      },
+      payments: {
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 1,
+        select: {
+          status: true,
+        },
       },
     },
-    property: {
-      include: {
-        category: true,
-      },
-    },
-    payments: {
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 1,
-      select: {
-        status: true,
-      },
-    },
-  },
-});
+  });
 
   const totalPages = Math.ceil(total / limit);
 

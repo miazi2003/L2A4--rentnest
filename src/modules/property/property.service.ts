@@ -74,32 +74,32 @@ const getAvailableProperties = async (query: IPropertyQuery) => {
 
   // Fetch count and paginated properties concurrently
   const total = await prisma.property.count({
-  where,
-});
+    where,
+  });
 
-const properties = await prisma.property.findMany({
-  where,
-  skip,
-  take,
-  orderBy,
-  include: {
-    landlord: {
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
+  const properties = await prisma.property.findMany({
+    where,
+    skip,
+    take,
+    orderBy,
+    include: {
+      landlord: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+        },
+      },
+      category: true,
+      reviews: {
+        select: {
+          rating: true,
+        },
       },
     },
-    category: true,
-    reviews: {
-      select: {
-        rating: true,
-      },
-    },
-  },
-});
+  });
 
   const totalPages = Math.ceil(total / limit);
 

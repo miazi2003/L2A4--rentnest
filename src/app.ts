@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { rateLimit } from 'express-rate-limit';
 import { env } from './config/env';
 import { requestLogger } from './middlewares/requestLogger.middleware';
@@ -39,6 +40,9 @@ app.use(express.json());
 
 // Parse URL-encoded request body
 app.use(express.urlencoded({ extended: true }));
+
+// Parse Cookie header and populate req.cookies
+app.use(cookieParser());
 
 // HTTP request logging using morgan streaming to custom logger
 app.use(requestLogger);

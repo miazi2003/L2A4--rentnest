@@ -32,12 +32,17 @@ declare global {
 export const auth = (...roles: UserRole[]) => {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        throw new UnauthorizedError('You are not authorized to access this resource');
+      let token: string | undefined;
+
+      if (req.cookies?.accessToken) {
+        token = req.cookies.accessToken;
+      } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.split(' ')[1];
       }
 
-      const token = authHeader.split(' ')[1];
+      if (!token) {
+        throw new UnauthorizedError('You are not authorized to access this resource');
+      }
       let decoded: JwtPayload;
 
       try {
