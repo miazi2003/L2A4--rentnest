@@ -1,12 +1,11 @@
 import { z } from 'zod';
 
-export const createPaymentSchema = z.object({
+export const checkoutSchema = z.object({
   rentalRequestId: z.string().uuid('Invalid rental request ID format'),
 });
 
-export const confirmPaymentSchema = z.object({
-  rentalRequestId: z.string().uuid('Invalid rental request ID format'),
-  paymentIntentId: z.string().min(1, 'Payment Intent ID is required'),
+export const verifySessionParamSchema = z.object({
+  sessionId: z.string().min(1, 'Session ID is required'),
 });
 
 export const paymentIdParamSchema = z.object({
@@ -18,7 +17,7 @@ export const paymentQuerySchema = z.object({
   limit: z.coerce.number().int().positive('limit must be a positive integer').default(10),
 });
 
-export type ICreatePaymentInput = z.infer<typeof createPaymentSchema>;
-export type IConfirmPaymentInput = z.infer<typeof confirmPaymentSchema>;
+export type ICheckoutInput = z.infer<typeof checkoutSchema>;
+export type VerifySessionParam = z.infer<typeof verifySessionParamSchema>;
 export type PaymentIdParam = z.infer<typeof paymentIdParamSchema>;
 export type IPaymentQuery = z.infer<typeof paymentQuerySchema>;

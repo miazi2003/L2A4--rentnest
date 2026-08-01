@@ -13,6 +13,8 @@ const envSchema = z.object({
   JWT_SECRET: z.string().default('rentnest-super-secret-key-2026'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   STRIPE_SECRET_KEY: z.string().default('sk_test_rentnest_mock_secret_key_2026'),
+  STRIPE_WEBHOOK_SECRET: z.string().default('whsec_rentnest_mock_webhook_secret_2026'),
+  CLIENT_URL: z.string().default('http://localhost:3000'),
 });
 
 const parseEnv = () => {

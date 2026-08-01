@@ -2,39 +2,63 @@ import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from './payment.service';
 import { ApiResponse } from '../../utils/apiResponse';
 import { paymentQuerySchema } from './payment.validation';
+import { BadRequestError } from '../../errors/appError';
 
 /**
- * Controller creating a Stripe Payment Intent for a rental request.
+ * Controller creating a dynamic Stripe Checkout Session.
+ * Returns { "url": "https://checkout.stripe.com/..." }
  */
-const createPaymentIntent = async (
+const createCheckoutSession = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const tenantId = req.user!.id;
-    const result = await PaymentService.createPaymentIntent(tenantId, req.body);
-    ApiResponse.success(res, 201, 'Payment intent created successfully', result);
+    const userId = req.user!.id;
+    const result = await PaymentService.createCheckoutSession(userId, req.body);
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Controller confirming Stripe payment success or failure.
+ * Controller verifying a Stripe Checkout Session status without modifying the database.
  */
-const confirmPayment = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const verifyCheckoutSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const tenantId = req.user!.id;
-    const result = await PaymentService.confirmPayment(tenantId, req.body);
-    ApiResponse.success(res, 200, 'Payment status processed successfully', result);
+    const sessionId = req.params.sessionId as string;
+    const result = await PaymentService.verifyCheckoutSession(sessionId);
+    ApiResponse.success(res, 200, 'Session status retrieved successfully', result);
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Controller listing payments history made by the authenticated tenant.
+ * Controller processing incoming Stripe Webhook events idempotently.
+ */
+const handleWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const signature = req.headers['stripe-signature'];
+    if (!signature) {
+      throw new BadRequestError('Missing stripe-signature header');
+    }
+
+    const rawBody = (req as Request & { rawBody?: Buffer }).rawBody || req.body;
+    const result = await PaymentService.handleWebhook(rawBody, signature as string);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Controller listing payment history made by the authenticated tenant.
  */
 const getPaymentHistory = async (
   req: Request,
@@ -77,8 +101,9 @@ const getPaymentDetails = async (
 };
 
 export const PaymentController = {
-  createPaymentIntent,
-  confirmPayment,
+  createCheckoutSession,
+  verifyCheckoutSession,
+  handleWebhook,
   getPaymentHistory,
   getPaymentDetails,
 };

@@ -35,8 +35,17 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Parse JSON request body
-app.use(express.json());
+// Webhook raw body parser (MUST run before express.json() to preserve raw Buffer for Stripe signature verification)
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+// Parse JSON request body & preserve rawBody for Stripe webhook signature validation
+app.use(
+  express.json({
+    verify: (req: express.Request & { rawBody?: Buffer }, _res: express.Response, buf: Buffer) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 
 // Parse URL-encoded request body
 app.use(express.urlencoded({ extended: true }));
