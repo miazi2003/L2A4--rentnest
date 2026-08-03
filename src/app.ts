@@ -26,6 +26,9 @@ app.use(
 const limiter = rateLimit({
   windowMs: env.RATE_LIMIT_WINDOW_MS,
   limit: env.RATE_LIMIT_MAX,
+  // Stripe retries webhook deliveries automatically. Authentication and replay
+  // protection are handled by the Stripe signature and WebhookEvent table.
+  skip: (req) => req.path === '/api/payments/webhook',
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: {

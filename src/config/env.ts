@@ -12,8 +12,8 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().default(100),
   JWT_SECRET: z.string().default('rentnest-super-secret-key-2026'),
   JWT_EXPIRES_IN: z.string().default('7d'),
-  STRIPE_SECRET_KEY: z.string().default('sk_test_rentnest_mock_secret_key_2026'),
-  STRIPE_WEBHOOK_SECRET: z.string().default('whsec_rentnest_mock_webhook_secret_2026'),
+  STRIPE_SECRET_KEY: z.string().min(1, 'STRIPE_SECRET_KEY is required'),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1, 'STRIPE_WEBHOOK_SECRET is required'),
   CLIENT_URL: z.string().default('http://localhost:3000'),
 });
 

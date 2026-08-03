@@ -105,6 +105,15 @@ const createCheckoutSession = async (tenantId: string, payload: ICheckoutInput) 
       rentalRequestId: rental.id,
       tenantId,
     },
+    // Checkout Session metadata is not automatically copied to the PaymentIntent.
+    // Copy it explicitly so payment_intent.payment_failed can find our Payment row.
+    payment_intent_data: {
+      metadata: {
+        paymentId: pendingPayment.id,
+        rentalRequestId: rental.id,
+        tenantId,
+      },
+    },
     success_url: `${env.CLIENT_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${env.CLIENT_URL}/payment/cancel?session_id={CHECKOUT_SESSION_ID}`,
   });
@@ -301,12 +310,16 @@ const handleWebhook = async (rawBody: Buffer | string, signature: string) => {
     } else if (event.type === 'payment_intent.payment_failed') {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       const failureReason = paymentIntent.last_payment_error?.message || 'Payment failed';
+      const paymentId = paymentIntent.metadata?.paymentId;
+      const rentalRequestId = paymentIntent.metadata?.rentalRequestId;
 
       const payment = await tx.payment.findFirst({
         where: {
           OR: [
+            ...(paymentId ? [{ id: paymentId }] : []),
             { stripePaymentIntentId: paymentIntent.id },
             { transactionReference: paymentIntent.id },
+            ...(rentalRequestId ? [{ rentalRequestId, status: 'PENDING' as const }] : []),
           ],
         },
       });
