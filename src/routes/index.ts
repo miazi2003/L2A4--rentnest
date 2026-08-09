@@ -10,6 +10,7 @@ import { AdminUserRoutes } from '../modules/admin/admin.route';
 import { AdminPropertyRoutes } from '../modules/admin/admin.property.route';
 import { AdminRentalRoutes } from '../modules/admin/admin.rental.route';
 import { ProfileRoutes } from '../modules/profile/profile.route';
+import { ContactRoutes } from '../modules/contact/contact.route';
 
 const rootRouter = Router();
 
@@ -51,6 +52,9 @@ rootRouter.use('/admin/rentals', AdminRentalRoutes);
 
 // Mount User Profile Management under /api/profile
 rootRouter.use('/profile', ProfileRoutes);
+
+// Mount Contact Form Submission under /api/contact
+rootRouter.use('/contact', ContactRoutes);
 
 // Mount API versions
 rootRouter.use('/v1', v1Router);

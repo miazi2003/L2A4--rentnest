@@ -14,3 +14,15 @@ export const loginValidationSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Email must be a valid email address'),
   password: z.string().min(1, 'Password is required'),
 });
+
+export const googleLoginValidationSchema = z.object({
+  credential: z
+    .string({ message: 'Google ID token (credential) is required' })
+    .min(1, 'Credential token cannot be empty'),
+});
+
+export const facebookLoginValidationSchema = z.object({
+  accessToken: z
+    .string({ message: 'Facebook access token is required' })
+    .min(1, 'Access token cannot be empty'),
+});

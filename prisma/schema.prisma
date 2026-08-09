@@ -12,11 +12,14 @@ datasource db {
 model User {
   id             String          @id @default(uuid())
   email          String          @unique
-  password       String
+  password       String?
   name           String?
-  phone          String
+  phone          String?
   role           UserRole        @default(TENANT)
   status         UserStatus      @default(ACTIVE)
+  provider       AuthProvider    @default(LOCAL)
+  googleId       String?         @unique
+  facebookId     String?         @unique
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -150,6 +153,19 @@ model Review {
   @@map("reviews")
 }
 
+model ContactMessage {
+  id        String               @id @default(uuid())
+  name      String
+  email     String
+  subject   String?
+  message   String
+  status    ContactMessageStatus @default(UNREAD)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@map("contact_messages")
+}
+
 enum UserRole {
   ADMIN
   LANDLORD
@@ -159,6 +175,17 @@ enum UserRole {
 enum UserStatus {
   ACTIVE
   BANNED
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+  FACEBOOK
+}
+
+enum ContactMessageStatus {
+  UNREAD
+  READ
 }
 
 enum PropertyAvailability {

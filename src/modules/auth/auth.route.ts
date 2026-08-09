@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { AuthController } from './auth.controller';
 import { validateBody } from '../../middlewares/validate.middleware';
-import { registerValidationSchema, loginValidationSchema } from './auth.validation';
+import {
+  registerValidationSchema,
+  loginValidationSchema,
+  googleLoginValidationSchema,
+  facebookLoginValidationSchema,
+} from './auth.validation';
 import { auth } from '../../middlewares/auth.middleware';
 
 const authRouter = Router();
@@ -19,6 +24,24 @@ authRouter.post('/register', validateBody(registerValidationSchema), AuthControl
  * @access Public
  */
 authRouter.post('/login', validateBody(loginValidationSchema), AuthController.login);
+
+/**
+ * @route POST /api/auth/google
+ * @desc Login user using Google OAuth ID token credential
+ * @access Public
+ */
+authRouter.post('/google', validateBody(googleLoginValidationSchema), AuthController.googleLogin);
+
+/**
+ * @route POST /api/auth/facebook
+ * @desc Login user using Facebook OAuth access token
+ * @access Public
+ */
+authRouter.post(
+  '/facebook',
+  validateBody(facebookLoginValidationSchema),
+  AuthController.facebookLogin,
+);
 
 /**
  * @route POST /api/auth/logout

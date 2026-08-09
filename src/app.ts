@@ -14,10 +14,26 @@ const app = express();
 // Set security HTTP headers
 app.use(helmet());
 
-// Enable CORS with customizable dynamic origins
+// Enable CORS with safe allowlist origins matching
+const allowedOrigins = env.CORS_ORIGIN.split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(','),
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, server-to-server, Stripe webhooks, Postman)
+      if (!origin) {
+        return callback(null, true);
+      }
+      if (
+        allowedOrigins.includes(origin) ||
+        (allowedOrigins.includes('*') && env.NODE_ENV !== 'production')
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS policy violation: Origin '${origin}' is not allowed`));
+    },
     credentials: true,
   }),
 );

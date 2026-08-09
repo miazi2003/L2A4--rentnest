@@ -16,6 +16,7 @@ const getProfile = async (userId: string) => {
       phone: true,
       role: true,
       status: true,
+      provider: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -53,6 +54,7 @@ const updateProfile = async (userId: string, payload: IUpdateProfileInput) => {
       phone: true,
       role: true,
       status: true,
+      provider: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -69,6 +71,12 @@ const changePassword = async (userId: string, payload: IChangePasswordInput) => 
 
   if (!user) {
     throw new NotFoundError('User profile no longer exists');
+  }
+
+  if (!user.password) {
+    throw new BadRequestError(
+      'Password change is not available for social login accounts without a password',
+    );
   }
 
   // 1. Verify current password matches using bcrypt

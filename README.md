@@ -1,6 +1,6 @@
 # RentNest Backend
 
-RentNest is a production-ready, high-performance backend solution for property rentals, structured using Node.js, Express, TypeScript, Prisma ORM, and PostgreSQL. It features robust user authentication, property searches, booking workflow management, Stripe transaction operations, review controls, and administrative management tools.
+RentNest is a production-ready, high-performance backend solution for property rentals, structured using Node.js, Express, TypeScript, Prisma ORM, and PostgreSQL. It features robust user authentication, property searches, booking workflow management, Stripe transaction operations, review controls, contact form submissions, Google & Facebook social authentication, and administrative management tools.
 
 ---
 
@@ -8,7 +8,7 @@ RentNest is a production-ready, high-performance backend solution for property r
 
 - **Framework**: Node.js, Express.js (TypeScript)
 - **Database & ORM**: PostgreSQL, Prisma ORM
-- **Authentication**: JSON Web Tokens (JWT), bcryptjs password hashing
+- **Authentication**: JSON Web Tokens (JWT), bcryptjs password hashing, Google OAuth & Facebook Graph API
 - **Input Validation**: Zod schema validation
 - **Payment Processing**: Stripe Node.js SDK
 - **Development Tooling**: ts-node, nodemon, ESLint (Flat Config), Prettier
@@ -18,12 +18,14 @@ RentNest is a production-ready, high-performance backend solution for property r
 ## Features
 
 1. **Authentication & Authorization**: Role-based access controls for Tenants, Landlords, and Admins. Protected sessions verify token signatures and block actions by banned accounts.
-2. **User Profiles**: Manage profile details (name and phone) and securely update password hashes with verification.
-3. **Property Listings**: Landlords can list, update, or remove properties. Tenants can query properties using advanced search (case-insensitive title and address matching), price range filters, category parameters, and sorting options.
-4. **Rental Requests**: Tenants can submit rental requests. Includes duration-based total pricing calculation, duplicates checks, and landlord-specific approvals or rejections workflows.
-5. **Stripe Payments**: Creates Stripe Payment Intents and processes confirmations to change booking states to active, complete with robust db transaction rollbacks on failure.
-6. **Reviews System**: Tenants can review properties they have completed renting, featuring average score and count aggregates in search feeds.
-7. **Admin Operations**: Administrative controls to view detailed listings, view booking aggregates, search platform users, and manage account statuses (Active / Banned).
+2. **Social Login**: Integrated Google OAuth (`POST /api/auth/google`) and Facebook OAuth (`POST /api/auth/facebook`) token verification and automatic account linking.
+3. **User Profiles**: Manage profile details (name and phone) and securely update password hashes with verification.
+4. **Contact Submissions**: Public contact form backend (`POST /api/contact`) with database persistence and status tracking.
+5. **Property Listings**: Landlords can list, update, or remove properties. Tenants can query properties using advanced search (case-insensitive title and address matching), price range filters, category parameters, and sorting options.
+6. **Rental Requests**: Tenants can submit rental requests. Includes duration-based total pricing calculation, duplicates checks, and landlord-specific approvals or rejections workflows.
+7. **Stripe Payments**: Creates Stripe Payment Intents and processes confirmations to change booking states to active, complete with robust db transaction rollbacks on failure.
+8. **Reviews System**: Tenants can review properties they have completed renting, featuring average score and count aggregates in search feeds.
+9. **Admin Operations**: Administrative controls to view detailed listings, view booking aggregates, search platform users, and manage account statuses (Active / Banned).
 
 ---
 
@@ -37,8 +39,9 @@ The project enforces a strict, modular **Service-Controller-Route-Validation** a
 │   ├── errors/             # Custom application error classes (AppError, NotFound, etc.)
 │   ├── middlewares/        # Authentication guards, error logging, and validation wrappers
 │   ├── modules/            # Core business modules
-│   │   ├── auth/           # Login, Register, and Session states
+│   │   ├── auth/           # Login, Register, Google & Facebook OAuth, and Session states
 │   │   ├── profile/        # User Profile settings and password changes
+│   │   ├── contact/        # Public contact form submissions and DB storage
 │   │   ├── category/       # Category CRUD operations
 │   │   ├── property/       # Landlord properties, search feeds, and detail lookups
 │   │   ├── rental/         # Booking requests, landlord decision controls
@@ -62,20 +65,28 @@ The project enforces a strict, modular **Service-Controller-Route-Validation** a
 
 ## Environment Variables
 
-Create a `.env` file in the root workspace folder and configure the following variables:
+Create a `.env` file in the root workspace folder and configure the following variables (refer to `.env.example`):
 
 ```env
 PORT=5000
 NODE_ENV=development
 DATABASE_URL="postgresql://username:password@localhost:5432/rentnest?schema=public"
-CORS_ORIGIN=*
+CORS_ORIGIN=http://localhost:3000
 
-# JWT Configuration
-JWT_SECRET="rentnest-super-secret-key-2026"
+# JWT Configuration (Required)
+JWT_SECRET="your_secure_jwt_secret_key_here"
 JWT_EXPIRES_IN="7d"
 
 # Stripe Configuration
 STRIPE_SECRET_KEY="sk_test_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
+
+CLIENT_URL="http://localhost:3000"
+
+# Social Login Configuration (Optional)
+GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
+FACEBOOK_APP_ID="your_facebook_app_id"
+FACEBOOK_APP_SECRET="your_facebook_app_secret"
 ```
 
 ---
@@ -92,30 +103,25 @@ npm install
 ```
 
 ### 2. Configure Environment Variables
-Copy `.env.example` into `.env` and fill in your database credentials and Stripe keys:
+Copy `.env.example` into `.env` and fill in your database credentials and API keys:
 ```bash
 cp .env.example .env
 ```
 
-### 3. Generate Prisma Client
-Generate the type definitions from the Prisma schema:
+### 3. Generate Prisma Client & Run Migrations
+Generate the type definitions from the Prisma schema and run migrations:
 ```bash
 npx prisma generate
+npx prisma db push
 ```
 
-### 4. Run Migrations
-Run the initial SQL migrations to create the database schemas:
-```bash
-npx prisma migrate dev --name init_db
-```
-
-### 5. Seed the Database
+### 4. Seed the Database
 Populate categories, users, properties, and rental requests:
 ```bash
 npx prisma db seed
 ```
 
-### 6. Start the Server
+### 5. Start the Server
 Run the development environment using `nodemon`:
 ```bash
 npm run dev
@@ -123,55 +129,40 @@ npm run dev
 
 ---
 
-## Seeding & Default User Accounts
+## New Update API Endpoints
 
-Seeding generates the following default credentials for testing and review:
+### 1. Contact Form Endpoint
+- **URL**: `POST /api/contact`
+- **Access**: Public
+- **Body**:
+  ```json
+  {
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "subject": "Inquiry about downtown apartments",
+    "message": "Hello, I would like to know if short-term leases are supported."
+  }
+  ```
 
-| User Role | Email | Password |
-| :--- | :--- | :--- |
-| **Admin** | `admin@rentnest.com` | `Admin@RentNest2026` |
-| **Landlord** | `landlord@rentnest.com` | `Landlord@RentNest2026` |
-| **Tenant** | `tenant@rentnest.com` | `Tenant@RentNest2026` |
+### 2. Google Social Login Endpoint
+- **URL**: `POST /api/auth/google`
+- **Access**: Public
+- **Body**:
+  ```json
+  {
+    "credential": "<GOOGLE_ID_TOKEN_FROM_FRONTEND>"
+  }
+  ```
 
----
-
-## API Endpoints & Postman Documentation
-
-- **API Base URL**: `http://localhost:5000/api`
-- **Postman API Documentation**: A complete Postman collection is generated in the root directory: [`rentnest_api_collection.json`](./rentnest_api_collection.json). You can import this file directly into Postman to test all endpoints.
-
----
-
-## Scripts
-
-Use the following npm tasks defined in `package.json`:
-
-- `npm run dev`: Starts the TypeScript development server with nodemon reloading.
-- `npm run build`: Compiles TypeScript files into JavaScript (`dist/`).
-- `npm run start`: Starts the compiled production application.
-- `npm run lint`: Runs ESLint checks.
-- `npm run format`: Standardizes source file formatting using Prettier.
-
----
-
-## Production Deployment (Render or Vercel)
-
-### 1. Database Setup
-Ensure you host a PostgreSQL database (e.g., Supabase, Neon, or Render PostgreSQL). Copy the connection URL and assign it to the `DATABASE_URL` environment variable.
-
-### 2. Configure Build Commands
-For web service hosting environments (like Render), configure the following setup parameters:
-- **Build Command**: `npm install && npm run build && npx prisma generate`
-- **Start Command**: `npx prisma migrate deploy && npm run start`
-
-### 3. Add Production Environment Variables
-Configure the production environment variables in your hosting settings panel:
-- `PORT` (assigned automatically by the platform or defaults to `5000`)
-- `NODE_ENV=production`
-- `DATABASE_URL`
-- `JWT_SECRET`
-- `JWT_EXPIRES_IN`
-- `STRIPE_SECRET_KEY`
+### 3. Facebook Social Login Endpoint
+- **URL**: `POST /api/auth/facebook`
+- **Access**: Public
+- **Body**:
+  ```json
+  {
+    "accessToken": "<FACEBOOK_ACCESS_TOKEN_FROM_FRONTEND>"
+  }
+  ```
 
 ---
 

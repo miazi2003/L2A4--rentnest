@@ -37,6 +37,32 @@ const login = async (req: Request, res: Response, next: NextFunction): Promise<v
 };
 
 /**
+ * Controller handling Google OAuth login request.
+ */
+const googleLogin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AuthService.googleLogin(req.body);
+    res.cookie('accessToken', result.accessToken, COOKIE_OPTIONS);
+    ApiResponse.success(res, 200, 'Google login successful', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Controller handling Facebook OAuth login request.
+ */
+const facebookLogin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AuthService.facebookLogin(req.body);
+    res.cookie('accessToken', result.accessToken, COOKIE_OPTIONS);
+    ApiResponse.success(res, 200, 'Facebook login successful', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Controller handling user logout request.
  */
 const logout = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -65,6 +91,8 @@ const getMe = async (req: Request, res: Response, next: NextFunction): Promise<v
 export const AuthController = {
   register,
   login,
+  googleLogin,
+  facebookLogin,
   logout,
   getMe,
 };
