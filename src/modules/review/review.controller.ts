@@ -46,7 +46,28 @@ const getPropertyReviews = async (
   }
 };
 
+/**
+ * Controller retrieving reviews submitted by the authenticated tenant.
+ */
+const getMyReviews = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const tenantId = req.user!.id;
+    const parsed = reviewQuerySchema.parse(req.query);
+    const result = await ReviewService.getMyReviews(tenantId, parsed);
+    ApiResponse.success(
+      res,
+      200,
+      'Tenant reviews retrieved successfully',
+      result.data,
+      result.meta,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const ReviewController = {
   createReview,
   getPropertyReviews,
+  getMyReviews,
 };

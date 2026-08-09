@@ -124,7 +124,60 @@ const getPropertyReviews = async (propertyId: string, query: IReviewQuery) => {
   };
 };
 
+/**
+ * Retrieve reviews submitted by the authenticated tenant with pagination and property info.
+ */
+const getMyReviews = async (tenantId: string, query: IReviewQuery) => {
+  const { page, limit } = query;
+  const skip = (page - 1) * limit;
+  const take = limit;
+
+  const [totalReviews, reviews] = await Promise.all([
+    prisma.review.count({
+      where: { tenantId },
+    }),
+    prisma.review.findMany({
+      where: { tenantId },
+      skip,
+      take,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        propertyId: true,
+        rating: true,
+        comment: true,
+        createdAt: true,
+        updatedAt: true,
+        property: {
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            images: true,
+            price: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const totalPages = Math.ceil(totalReviews / limit);
+
+  return {
+    meta: {
+      page,
+      limit,
+      total: totalReviews,
+      totalPages,
+    },
+    data: reviews,
+  };
+};
+
 export const ReviewService = {
   createReview,
   getPropertyReviews,
+  getMyReviews,
 };

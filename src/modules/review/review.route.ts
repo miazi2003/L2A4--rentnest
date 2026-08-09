@@ -20,6 +20,18 @@ reviewRouter.post(
 );
 
 /**
+ * @route GET /api/reviews/me
+ * @desc Retrieve review history submitted by the authenticated tenant
+ * @access Tenant
+ */
+reviewRouter.get(
+  '/me',
+  auth(UserRole.TENANT),
+  validateQuery(reviewQuerySchema),
+  ReviewController.getMyReviews,
+);
+
+/**
  * @route GET /api/reviews/property/:propertyId
  * @desc Retrieve reviews for a property
  * @access Public
