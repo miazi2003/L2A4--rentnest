@@ -15,9 +15,9 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().min(1, 'STRIPE_SECRET_KEY is required'),
   STRIPE_WEBHOOK_SECRET: z.string().min(1, 'STRIPE_WEBHOOK_SECRET is required'),
   CLIENT_URL: z.string().default('http://localhost:3000'),
-  GOOGLE_CLIENT_ID: z.string().optional(),
-  FACEBOOK_APP_ID: z.string().optional(),
-  FACEBOOK_APP_SECRET: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
+  FACEBOOK_APP_ID: z.string().min(1, 'FACEBOOK_APP_ID is required'),
+  FACEBOOK_APP_SECRET: z.string().min(1, 'FACEBOOK_APP_SECRET is required'),
 });
 
 const parseEnv = () => {

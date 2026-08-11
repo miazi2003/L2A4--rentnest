@@ -5,6 +5,7 @@ import { AuthProvider, User, UserRole, UserStatus } from '@prisma/client';
 import { prisma } from '../../config/db';
 import { env } from '../../config/env';
 import { ConflictError, UnauthorizedError, NotFoundError } from '../../errors/appError';
+import { logger } from '../../utils/logger';
 import {
   ILoginInput,
   IRegisterInput,
@@ -124,8 +125,13 @@ const googleLogin = async (payload: IGoogleLoginInput) => {
     });
     const tokenPayload = ticket.getPayload();
 
-    if (!tokenPayload || !tokenPayload.email) {
-      throw new UnauthorizedError('Invalid Google credential token payload');
+    if (!tokenPayload?.email || !tokenPayload.sub) {
+      throw new UnauthorizedError('Google authentication failed: Email and subject are required');
+    }
+
+    if (tokenPayload.email_verified !== true) {
+      logger.warn('Google authentication rejected because the account email is not verified');
+      throw new UnauthorizedError('Google authentication failed: A verified email is required');
     }
 
     googleEmail = tokenPayload.email.toLowerCase();
@@ -136,28 +142,42 @@ const googleLogin = async (payload: IGoogleLoginInput) => {
     throw new UnauthorizedError('Google authentication failed: Invalid or expired token');
   }
 
-  // Find existing user by googleId or email for seamless account linking
-  let user = await prisma.user.findFirst({
-    where: {
-      OR: [{ googleId: googleSub }, { email: googleEmail }],
-    },
-  });
+  // A provider subject is authoritative. Email linking is restricted to non-privileged tenants.
+  let user = await prisma.user.findUnique({ where: { googleId: googleSub } });
+
+  if (!user) {
+    const emailUser = await prisma.user.findUnique({ where: { email: googleEmail } });
+
+    if (emailUser) {
+      if (emailUser.status === UserStatus.BANNED) {
+        throw new UnauthorizedError('Your account has been banned');
+      }
+
+      if (emailUser.role === UserRole.ADMIN || emailUser.role === UserRole.LANDLORD) {
+        logger.warn(`Blocked unsafe Google email-link attempt for privileged user ${emailUser.id}`);
+        throw new ConflictError(
+          'This account must use its existing sign-in method or explicitly link Google while authenticated.',
+        );
+      }
+
+      if (
+        emailUser.googleId ||
+        (emailUser.provider !== AuthProvider.LOCAL && emailUser.provider !== AuthProvider.GOOGLE)
+      ) {
+        throw new ConflictError('This email is already associated with another sign-in method');
+      }
+
+      user = await prisma.user.update({
+        where: { id: emailUser.id },
+        data: { googleId: googleSub },
+      });
+    }
+  }
 
   if (user) {
     // Check if banned
     if (user.status === UserStatus.BANNED) {
       throw new UnauthorizedError('Your account has been banned');
-    }
-
-    // Link googleId if missing
-    if (!user.googleId) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          googleId: googleSub,
-          provider: user.provider === AuthProvider.LOCAL ? AuthProvider.LOCAL : AuthProvider.GOOGLE,
-        },
-      });
     }
   } else {
     // Create new TENANT user
@@ -190,20 +210,48 @@ const facebookLogin = async (payload: IFacebookLoginInput) => {
   let fbName: string | undefined;
 
   try {
-    const response = await fetch(
-      `https://graph.facebook.com/me?fields=id,name,email&access_token=${encodeURIComponent(payload.accessToken)}`,
+    const appAccessToken = `${env.FACEBOOK_APP_ID}|${env.FACEBOOK_APP_SECRET}`;
+    const debugResponse = await fetch(
+      `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(payload.accessToken)}&access_token=${encodeURIComponent(appAccessToken)}`,
     );
 
-    if (!response.ok) {
+    if (!debugResponse.ok) {
       throw new UnauthorizedError('Facebook token verification failed');
     }
 
-    const data = (await response.json()) as { id?: string; email?: string; name?: string };
+    const debugResult = (await debugResponse.json()) as {
+      data?: { app_id?: string; is_valid?: boolean; user_id?: string };
+    };
+    const debugData = debugResult.data;
 
-    if (!data.id || !data.email) {
+    if (!debugData?.is_valid || !debugData.user_id) {
+      throw new UnauthorizedError('Facebook authentication failed: Invalid access token');
+    }
+
+    if (debugData.app_id !== env.FACEBOOK_APP_ID) {
+      logger.warn('Facebook authentication rejected because the token app ID did not match');
       throw new UnauthorizedError(
-        'Facebook authentication failed: Unable to retrieve verified email',
+        'Facebook authentication failed: Token was issued for another app',
       );
+    }
+
+    const profileResponse = await fetch(
+      `https://graph.facebook.com/me?fields=id,name,email&access_token=${encodeURIComponent(payload.accessToken)}`,
+    );
+
+    if (!profileResponse.ok) {
+      throw new UnauthorizedError('Facebook profile retrieval failed');
+    }
+
+    const data = (await profileResponse.json()) as { id?: string; email?: string; name?: string };
+
+    if (!data.id || data.id !== debugData.user_id) {
+      logger.warn('Facebook authentication rejected because profile and token user IDs differed');
+      throw new UnauthorizedError('Facebook authentication failed: Profile identity mismatch');
+    }
+
+    if (!data.email) {
+      throw new UnauthorizedError('Facebook authentication failed: Email permission is required');
     }
 
     fbId = data.id;
@@ -214,24 +262,42 @@ const facebookLogin = async (payload: IFacebookLoginInput) => {
     throw new UnauthorizedError('Facebook authentication failed');
   }
 
-  let user = await prisma.user.findFirst({
-    where: {
-      OR: [{ facebookId: fbId }, { email: fbEmail }],
-    },
-  });
+  let user = await prisma.user.findUnique({ where: { facebookId: fbId } });
+
+  if (!user) {
+    const emailUser = await prisma.user.findUnique({ where: { email: fbEmail } });
+
+    if (emailUser) {
+      if (emailUser.status === UserStatus.BANNED) {
+        throw new UnauthorizedError('Your account has been banned');
+      }
+
+      if (emailUser.role === UserRole.ADMIN || emailUser.role === UserRole.LANDLORD) {
+        logger.warn(
+          `Blocked unsafe Facebook email-link attempt for privileged user ${emailUser.id}`,
+        );
+        throw new ConflictError(
+          'This account must use its existing sign-in method or explicitly link Facebook while authenticated.',
+        );
+      }
+
+      if (
+        emailUser.facebookId ||
+        (emailUser.provider !== AuthProvider.LOCAL && emailUser.provider !== AuthProvider.FACEBOOK)
+      ) {
+        throw new ConflictError('This email is already associated with another sign-in method');
+      }
+
+      user = await prisma.user.update({
+        where: { id: emailUser.id },
+        data: { facebookId: fbId },
+      });
+    }
+  }
 
   if (user) {
     if (user.status === UserStatus.BANNED) {
       throw new UnauthorizedError('Your account has been banned');
-    }
-
-    if (!user.facebookId) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          facebookId: fbId,
-        },
-      });
     }
   } else {
     user = await prisma.user.create({

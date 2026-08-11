@@ -163,7 +163,7 @@ Contact submissions are persisted directly into PostgreSQL via the Prisma `Conta
 - **Flow**:
   1. Frontend submits Facebook access token (`accessToken`).
   2. Backend verifies token and fetches user profile from Meta Graph API (`https://graph.facebook.com/me?fields=id,name,email&access_token=...`).
-  3. Extracts verified Facebook ID and email.
+  3. Cross-checks the Facebook profile ID and requires an available email.
   4. Performs database user lookup by `facebookId` or `email`.
   5. If user exists without `facebookId`, links `facebookId` while preserving existing user role.
   6. If user does not exist, creates a new user account with default `TENANT` role and `FACEBOOK` provider.
@@ -213,7 +213,7 @@ Contact submissions are persisted directly into PostgreSQL via the Prisma `Conta
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/payments/create` | Tenant | Generate dynamic Hosted Stripe Checkout Session |
-| `GET` | `/api/payments/verify/:sessionId` | Public / Auth | Retrieve Stripe Checkout Session status directly from Stripe |
+| `GET` | `/api/payments/verify/:sessionId` | Tenant | Retrieve the authenticated tenant's Stripe Checkout Session status |
 | `GET` | `/api/payments` | Tenant | Get tenant payment transaction history |
 | `GET` | `/api/payments/:id` | Tenant | Get payment transaction details by ID |
 | `POST` | `/api/payments/webhook` | Public | Stripe Webhook listener (receives raw body & verifies signature) |
@@ -316,9 +316,9 @@ Configure environment variables in a `.env` file in the root workspace folder (r
 | `STRIPE_SECRET_KEY` | Yes | Stripe secret API key | `sk_test_...` |
 | `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook signing secret | `whsec_...` |
 | `CLIENT_URL` | No | Frontend URL for Stripe redirect | `http://localhost:3000` |
-| `GOOGLE_CLIENT_ID` | Optional | Google OAuth Client ID | `<GOOGLE_CLIENT_ID>` |
-| `FACEBOOK_APP_ID` | Optional | Facebook App ID | `<FACEBOOK_APP_ID>` |
-| `FACEBOOK_APP_SECRET` | Optional | Facebook App Secret | `<FACEBOOK_APP_SECRET>` |
+| `GOOGLE_CLIENT_ID` | Yes | Google OAuth Client ID | `<GOOGLE_CLIENT_ID>` |
+| `FACEBOOK_APP_ID` | Yes | Facebook App ID | `<FACEBOOK_APP_ID>` |
+| `FACEBOOK_APP_SECRET` | Yes | Facebook App Secret | `<FACEBOOK_APP_SECRET>` |
 
 ---
 
@@ -388,4 +388,3 @@ npm run prisma:seed
 ## License
 
 This project is licensed under the [ISC License](package.json).
-

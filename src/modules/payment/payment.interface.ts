@@ -12,5 +12,4 @@ export interface IVerifySessionResponse {
   status: string | null;
   amountTotal: number | null;
   currency: string | null;
-  customerEmail: string | null;
 }

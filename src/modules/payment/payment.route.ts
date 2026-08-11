@@ -22,10 +22,11 @@ paymentRouter.post('/webhook', PaymentController.handleWebhook);
 /**
  * @route GET /api/payments/verify/:sessionId
  * @desc Retrieve Stripe checkout session status without DB modifications
- * @access Public / Authenticated
+ * @access Tenant
  */
 paymentRouter.get(
   '/verify/:sessionId',
+  auth(UserRole.TENANT),
   validateParams(verifySessionParamSchema),
   PaymentController.verifyCheckoutSession,
 );

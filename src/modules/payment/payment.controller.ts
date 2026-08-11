@@ -32,7 +32,8 @@ const verifyCheckoutSession = async (
 ): Promise<void> => {
   try {
     const sessionId = req.params.sessionId as string;
-    const result = await PaymentService.verifyCheckoutSession(sessionId);
+    const tenantId = req.user!.id;
+    const result = await PaymentService.verifyCheckoutSession(sessionId, tenantId);
     ApiResponse.success(res, 200, 'Session status retrieved successfully', result);
   } catch (error) {
     next(error);

@@ -137,7 +137,21 @@ const createCheckoutSession = async (tenantId: string, payload: ICheckoutInput) 
  * Retrieve Checkout Session status directly from Stripe.
  * IMPORTANT: MUST NEVER MODIFY THE DATABASE.
  */
-const verifyCheckoutSession = async (sessionId: string) => {
+const verifyCheckoutSession = async (sessionId: string, tenantId: string) => {
+  const payment = await prisma.payment.findUnique({
+    where: { stripeSessionId: sessionId },
+    include: { rentalRequest: { select: { tenantId: true } } },
+  });
+
+  if (!payment) {
+    throw new NotFoundError('Payment session not found');
+  }
+
+  if (payment.rentalRequest.tenantId !== tenantId) {
+    logger.warn(`Blocked payment session ownership mismatch for payment ${payment.id}`);
+    throw new ForbiddenError('You do not have permission to verify this payment session');
+  }
+
   let session: Stripe.Checkout.Session;
 
   try {
@@ -152,7 +166,6 @@ const verifyCheckoutSession = async (sessionId: string) => {
     status: session.status,
     amountTotal: session.amount_total ? session.amount_total / 100 : null,
     currency: session.currency,
-    customerEmail: session.customer_details?.email || session.customer_email || null,
   };
 };
 
@@ -198,8 +211,75 @@ const handleWebhook = async (rawBody: Buffer | string, signature: string) => {
       const session = event.data.object as Stripe.Checkout.Session;
 
       const paymentId = session.metadata?.paymentId;
-      const rentalRequestId = session.metadata?.rentalRequestId || session.client_reference_id;
+      const rentalRequestId = session.metadata?.rentalRequestId;
       const tenantId = session.metadata?.tenantId;
+
+      if (session.payment_status !== 'paid') {
+        logger.warn(`Ignoring unpaid completed Checkout Session ${session.id}`);
+        return;
+      }
+
+      if (!paymentId || !rentalRequestId || !tenantId) {
+        logger.error(`Stripe metadata integrity check failed for Checkout Session ${session.id}`);
+        throw new BadRequestError('Stripe Checkout Session metadata is incomplete');
+      }
+
+      const payment = await tx.payment.findUnique({
+        where: { id: paymentId },
+        include: { rentalRequest: true },
+      });
+
+      if (!payment) {
+        logger.error(`Stripe Checkout Session ${session.id} references a missing payment`);
+        throw new NotFoundError('Webhook payment record not found');
+      }
+
+      if (
+        payment.rentalRequestId !== rentalRequestId ||
+        payment.rentalRequest.id !== rentalRequestId ||
+        payment.rentalRequest.tenantId !== tenantId ||
+        payment.userId !== tenantId ||
+        payment.stripeSessionId !== session.id
+      ) {
+        logger.error(`Stripe metadata or session ownership mismatch for payment ${payment.id}`);
+        throw new BadRequestError('Stripe Checkout Session does not match the payment record');
+      }
+
+      const expectedAmountCents = Math.round(Number(payment.amount) * 100);
+      const rentalAmountCents = Math.round(Number(payment.rentalRequest.totalPrice) * 100);
+
+      if (expectedAmountCents !== rentalAmountCents) {
+        logger.error(`Database amount integrity mismatch for payment ${payment.id}`);
+        throw new BadRequestError('Payment amount does not match the rental amount');
+      }
+
+      if (session.amount_total !== expectedAmountCents) {
+        logger.error(`Stripe amount mismatch for payment ${payment.id}`);
+        throw new BadRequestError('Stripe Checkout Session amount does not match expected amount');
+      }
+
+      const sessionCurrency = session.currency?.toLowerCase();
+      const expectedCurrency = payment.currency.toLowerCase();
+      if (!sessionCurrency || sessionCurrency !== expectedCurrency) {
+        logger.error(`Stripe currency mismatch for payment ${payment.id}`);
+        throw new BadRequestError(
+          'Stripe Checkout Session currency does not match expected currency',
+        );
+      }
+
+      if (payment.status === 'COMPLETED') {
+        if (payment.rentalRequest.status !== 'ACTIVE') {
+          logger.error(`Completed payment ${payment.id} has an invalid rental state`);
+          throw new BadRequestError('Completed payment has an inconsistent rental state');
+        }
+        logger.info(`Payment ${payment.id} is already COMPLETED; no state change required.`);
+        return;
+      }
+
+      if (payment.status !== 'PENDING' || payment.rentalRequest.status !== 'APPROVED') {
+        logger.error(`Invalid payment or rental transition state for payment ${payment.id}`);
+        throw new BadRequestError('Payment or rental is not in the expected state');
+      }
 
       let paymentIntentId: string | null = null;
       let chargeId: string | null = null;
@@ -234,106 +314,73 @@ const handleWebhook = async (rawBody: Buffer | string, signature: string) => {
       }
 
       const customerEmail = session.customer_details?.email || session.customer_email || null;
-      const amountPaid = session.amount_total ? session.amount_total / 100 : 0;
-      const currency = session.currency || 'usd';
-
-      // Find the Payment record using metadata paymentId, stripeSessionId, or rentalRequestId
-      let payment = await tx.payment.findFirst({
-        where: {
-          OR: [
-            ...(paymentId ? [{ id: paymentId }] : []),
-            { stripeSessionId: session.id },
-            ...(rentalRequestId ? [{ rentalRequestId, status: 'PENDING' as const }] : []),
-          ],
+      const paymentUpdate = await tx.payment.updateMany({
+        where: { id: payment.id, status: 'PENDING' },
+        data: {
+          status: 'COMPLETED',
+          stripePaymentIntentId: paymentIntentId,
+          stripeChargeId: chargeId,
+          stripeCustomerId: customerId,
+          customerEmail,
+          transactionReference: paymentIntentId || session.id,
+          paymentMethod: paymentMethod || 'STRIPE',
+          receiptUrl,
+          paidAt: new Date(),
+          webhookEventId: event.id,
         },
       });
 
-      if (payment) {
-        // Prevent duplicate updates if payment is already COMPLETED
-        if (payment.status === 'COMPLETED') {
-          logger.info(`Payment ${payment.id} already marked COMPLETED.`);
-          return;
-        }
-
-        await tx.payment.update({
-          where: { id: payment.id },
-          data: {
-            status: 'COMPLETED',
-            stripeSessionId: session.id,
-            stripePaymentIntentId: paymentIntentId,
-            stripeChargeId: chargeId,
-            stripeCustomerId: customerId,
-            customerEmail,
-            transactionReference: paymentIntentId || session.id,
-            paymentMethod: paymentMethod || 'STRIPE',
-            receiptUrl,
-            paidAt: new Date(),
-            webhookEventId: event.id,
-            amount: amountPaid > 0 ? amountPaid : payment.amount,
-            currency,
-            userId: tenantId || payment.userId,
-          },
-        });
-        logger.info(`Payment ${payment.id} updated to COMPLETED in database.`);
-      } else if (rentalRequestId) {
-        // Fallback: Create payment record if not found
-        payment = await tx.payment.create({
-          data: {
-            rentalRequestId,
-            userId: tenantId,
-            amount: amountPaid,
-            currency,
-            status: 'COMPLETED',
-            stripeSessionId: session.id,
-            stripePaymentIntentId: paymentIntentId,
-            stripeChargeId: chargeId,
-            stripeCustomerId: customerId,
-            customerEmail,
-            transactionReference: paymentIntentId || session.id,
-            paymentMethod: paymentMethod || 'STRIPE',
-            receiptUrl,
-            paidAt: new Date(),
-            webhookEventId: event.id,
-          },
-        });
-        logger.info(`Fallback Payment ${payment.id} created and set to COMPLETED.`);
+      if (paymentUpdate.count !== 1) {
+        throw new BadRequestError('Payment state changed before webhook completion');
       }
 
-      // Update Rental Request status from APPROVED -> ACTIVE
-      if (rentalRequestId) {
-        await tx.rentalRequest.update({
-          where: { id: rentalRequestId },
-          data: { status: 'ACTIVE' },
-        });
-        logger.info(`RentalRequest ${rentalRequestId} updated from APPROVED to ACTIVE.`);
+      const rentalUpdate = await tx.rentalRequest.updateMany({
+        where: { id: rentalRequestId, tenantId, status: 'APPROVED' },
+        data: { status: 'ACTIVE' },
+      });
+
+      if (rentalUpdate.count !== 1) {
+        throw new BadRequestError('Rental state changed before webhook completion');
       }
+
+      logger.info(
+        `Payment ${payment.id} completed and RentalRequest ${rentalRequestId} activated.`,
+      );
     } else if (event.type === 'payment_intent.payment_failed') {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       const failureReason = paymentIntent.last_payment_error?.message || 'Payment failed';
       const paymentId = paymentIntent.metadata?.paymentId;
       const rentalRequestId = paymentIntent.metadata?.rentalRequestId;
+      const tenantId = paymentIntent.metadata?.tenantId;
 
-      const payment = await tx.payment.findFirst({
-        where: {
-          OR: [
-            ...(paymentId ? [{ id: paymentId }] : []),
-            { stripePaymentIntentId: paymentIntent.id },
-            { transactionReference: paymentIntent.id },
-            ...(rentalRequestId ? [{ rentalRequestId, status: 'PENDING' as const }] : []),
-          ],
-        },
+      if (!paymentId || !rentalRequestId || !tenantId) {
+        logger.warn(`Ignoring failed PaymentIntent ${paymentIntent.id} with incomplete metadata`);
+        return;
+      }
+
+      const payment = await tx.payment.findUnique({
+        where: { id: paymentId },
+        include: { rentalRequest: { select: { tenantId: true } } },
       });
 
-      if (payment && payment.status !== 'COMPLETED') {
-        await tx.payment.update({
-          where: { id: payment.id },
+      if (
+        payment?.status === 'PENDING' &&
+        payment.rentalRequestId === rentalRequestId &&
+        payment.rentalRequest.tenantId === tenantId &&
+        (!payment.stripePaymentIntentId || payment.stripePaymentIntentId === paymentIntent.id)
+      ) {
+        await tx.payment.updateMany({
+          where: { id: payment.id, status: 'PENDING' },
           data: {
             status: 'FAILED',
+            stripePaymentIntentId: paymentIntent.id,
             failureReason,
             webhookEventId: event.id,
           },
         });
         logger.info(`Payment ${payment.id} updated to FAILED.`);
+      } else {
+        logger.warn(`Ignoring failed PaymentIntent ${paymentIntent.id}: payment metadata mismatch`);
       }
     } else if (event.type === 'checkout.session.expired') {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -341,15 +388,17 @@ const handleWebhook = async (rawBody: Buffer | string, signature: string) => {
         where: { stripeSessionId: session.id },
       });
 
-      if (payment && payment.status === 'PENDING') {
-        await tx.payment.update({
-          where: { id: payment.id },
+      if (payment?.status === 'PENDING') {
+        await tx.payment.updateMany({
+          where: { id: payment.id, stripeSessionId: session.id, status: 'PENDING' },
           data: {
             status: 'CANCELLED',
             webhookEventId: event.id,
           },
         });
         logger.info(`Payment ${payment.id} updated to CANCELLED.`);
+      } else if (!payment) {
+        logger.warn(`Ignoring expired Checkout Session ${session.id}: payment was not found`);
       }
     }
   });
